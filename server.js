@@ -23,7 +23,17 @@ const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 
 app.use(express.json({ limit: '5mb' }));
-app.use(express.static(path.join(__dirname, 'public'), { extensions: ['html'] }));
+// Servir la SPA. Para HTML/JS/CSS usamos "no-cache" (revalidación con ETag): el
+// navegador siempre comprueba si hay versión nueva, así los cambios aparecen con
+// una recarga normal (⌘R) sin tener que vaciar la caché de Safari.
+app.use(express.static(path.join(__dirname, 'public'), {
+  extensions: ['html'],
+  etag: true,
+  lastModified: true,
+  setHeaders: (res, filePath) => {
+    if (/\.(html|js|css)$/i.test(filePath)) res.setHeader('Cache-Control', 'no-cache');
+  },
+}));
 
 // ---------- Salud ----------
 app.get('/api/health', (_req, res) =>
