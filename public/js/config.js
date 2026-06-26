@@ -156,7 +156,7 @@ export const WORKSPACES = {
   },
   maestra: {
     key: 'maestra', group: 'maestra',
-    label: 'Base de Datos Maestra', icon: '🏗️',
+    label: 'Base de Datos', icon: '🏗️',
     desc: 'Administración de Etapa 3: clientes, lotes, contratos, estado de cuenta y cobranza.',
     home: 'm/dashboard',
   },

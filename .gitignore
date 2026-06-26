@@ -1,0 +1,10 @@
+node_modules/
+npm-debug.log*
+.DS_Store
+*.local
+
+# Datos compartidos del servidor (no versionar)
+data/db.json
+data/.secret
+data/*.log
+data/db.json.tmp
