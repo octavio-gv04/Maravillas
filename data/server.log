@@ -1,0 +1,7 @@
+Failed running 'server.js'. Waiting for file changes before restarting...
+Restarting 'server.js'
+
+  Admin Financiera (multiusuario + tiempo real)
+  • Local:  http://localhost:3000
+  • Red:    http://192.168.4.43:3000   (otros equipos en la misma red)
+

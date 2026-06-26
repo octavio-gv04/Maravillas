@@ -1,0 +1,53 @@
+/* styles.css — Estilos complementarios a Tailwind.
+   Solo lo que Tailwind no cubre comodamente o conviene centralizar. */
+
+:root {
+  -webkit-text-size-adjust: 100%; /* evita reescalado raro en iOS Safari */
+}
+
+/* Tipografia mas nitida en pantallas Retina (macOS / iOS) */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scroll suave y barras discretas */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: rgba(120,120,120,.35); border-radius: 8px; }
+
+/* Tabla responsive: en pantallas chicas permite scroll horizontal sin romper layout */
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* Animacion de entrada de toasts */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.toast { animation: toast-in .18s ease-out; }
+
+/* Indicadores de estado (semaforo de conciliacion) */
+.dot { display:inline-block; width:.65rem; height:.65rem; border-radius:9999px; }
+.dot-green  { background:#16a34a; }
+.dot-red    { background:#dc2626; }
+.dot-yellow { background:#d97706; }
+
+/* Items del menu lateral */
+.nav-link {
+  display:flex; align-items:center; gap:.6rem;
+  padding:.6rem .75rem; border-radius:.6rem;
+  color: inherit; text-decoration:none; cursor:pointer;
+}
+.nav-link:hover { background: rgba(120,120,120,.12); }
+.nav-link.active { background:#1d4ed8; color:#fff; }
+
+/* Inputs base reutilizables (las clases las componemos en JS con estas utilidades) */
+.field {
+  width:100%; padding:.55rem .7rem; border-radius:.6rem;
+  border:1px solid rgba(120,120,120,.35); background:transparent; color:inherit;
+  outline:none;
+}
+.field:focus { border-color:#1d4ed8; box-shadow:0 0 0 3px rgba(29,78,216,.18); }
+
+/* Oculta el spinner nativo feo en inputs number de algunos navegadores no afecta funcionalidad */
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button { margin:0; }

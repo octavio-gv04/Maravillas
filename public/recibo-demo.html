@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vista previa del recibo · Rincón de las Maravillas</title>
+  <style>
+    body { margin: 0; font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; background: #f1f5f9; }
+    header { padding: 12px 16px; background: #fff; border-bottom: 1px solid #e2e8f0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    header h1 { font-size: 15px; margin: 0; color: #1e293b; }
+    header .sp { flex: 1; }
+    button { border: 1px solid #cbd5e1; background: #fff; border-radius: 8px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
+    button.active { background: #1d4ed8; color: #fff; border-color: #1d4ed8; }
+    .hint { font-size: 12px; color: #64748b; }
+    iframe { display: block; border: 0; width: 100%; height: calc(100vh - 56px); background: #e5e7eb; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🧾 Vista previa del recibo</h1>
+    <button id="b-ing" class="active">Ingreso (recibo)</button>
+    <button id="b-gas">Gasto (comprobante)</button>
+    <span class="sp"></span>
+    <span class="hint">Recarga con ⌘R para ver los cambios. Para imprimir, usa el botón 🖨️ dentro de la app.</span>
+  </header>
+  <iframe id="frame" title="Recibo"></iframe>
+
+  <script type="module">
+    import { comprobanteHTML } from '/js/recibo.js';
+
+    // Datos de ejemplo (puedes cambiarlos para probar otros montos/clientes).
+    const ingreso = {
+      recibo: 'R-00103', fecha: '2026-06-01', etapa: 'Etapa 3', lote: 'M57-L20',
+      categoria: 'Abono', cliente: 'Juan José Duron Flores', metodo: 'Efectivo',
+      monto: 2000, vendedor: 'Mónica',
+    };
+    const gasto = {
+      folio: 142, fecha: '2026-06-15', etapa: 'Etapa 3', lote: 'M41-L26',
+      categoria: 'Comisión', concepto: 'Comisión M41-L26', metodo: 'Efectivo',
+      beneficiario: 'Laura Pérez Soto', monto: 1500, recibe: 'Laura',
+    };
+
+    const frame = document.getElementById('frame');
+    const render = (tipo) => {
+      frame.srcdoc = comprobanteHTML(tipo, tipo === 'gasto' ? gasto : ingreso, { preview: true });
+      document.getElementById('b-ing').classList.toggle('active', tipo === 'ingreso');
+      document.getElementById('b-gas').classList.toggle('active', tipo === 'gasto');
+    };
+    document.getElementById('b-ing').addEventListener('click', () => render('ingreso'));
+    document.getElementById('b-gas').addEventListener('click', () => render('gasto'));
+    render('ingreso');
+  </script>
+</body>
+</html>
