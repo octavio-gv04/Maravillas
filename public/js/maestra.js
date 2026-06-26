@@ -18,12 +18,22 @@ import {
   cobranza as cobranzaCol, pagos as pagosCol, maestraAsOf,
 } from './store.js';
 import { toNum, todayISO } from './utils.js';
-import { ETAPA_MAESTRA_DEFAULT, AGING_BUCKETS, CAT_ENGANCHE, MAESTRA_ASOF } from './config.js';
+import { ETAPA_MAESTRA_DEFAULT, ETAPAS_MAESTRA, STORAGE_ETAPA_MAESTRA, AGING_BUCKETS, CAT_ENGANCHE, MAESTRA_ASOF } from './config.js';
 
-// ---------- Etapa activa (preparado para selector multi-etapa) ----------
-let _etapa = ETAPA_MAESTRA_DEFAULT;
+// ---------- Etapa activa (selector multi-etapa, recordada en localStorage) ----------
+function _etapaInicial() {
+  try {
+    const guardada = localStorage.getItem(STORAGE_ETAPA_MAESTRA);
+    if (guardada && ETAPAS_MAESTRA.includes(guardada)) return guardada;
+  } catch {}
+  return ETAPA_MAESTRA_DEFAULT;
+}
+let _etapa = _etapaInicial();
 export const etapaActiva = () => _etapa;
-export const setEtapa = (e) => { _etapa = e; };
+export const setEtapa = (e) => {
+  _etapa = e;
+  try { localStorage.setItem(STORAGE_ETAPA_MAESTRA, e); } catch {}
+};
 
 // ---------- Helpers ----------
 const ci = (a, b) => String(a ?? '').trim().toLowerCase() === String(b ?? '').trim().toLowerCase();

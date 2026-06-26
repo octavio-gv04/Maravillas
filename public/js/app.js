@@ -43,7 +43,7 @@ route('flujo', { title: 'Flujo de efectivo', icon: '💵', render: flujo, group:
 route('conciliacion', { title: 'Conciliación', icon: '🔗', render: conciliacion, group: 'diario' });
 route('historial', { title: 'Historial', icon: '🕑', render: historial, group: 'diario' });
 
-route('m/dashboard', { title: 'Dashboard Etapa 3', icon: '🏠', render: mDashboard, group: 'maestra' });
+route('m/dashboard', { title: 'Dashboard', icon: '🏠', render: mDashboard, group: 'maestra' });
 route('m/clientes', { title: 'Clientes', icon: '👥', render: mClientes, group: 'maestra' });
 route('m/lotes', { title: 'Lotes', icon: '🏠', render: mLotes, group: 'maestra' });
 route('m/contratos', { title: 'Contratos', icon: '📄', render: mContratos, group: 'maestra' });

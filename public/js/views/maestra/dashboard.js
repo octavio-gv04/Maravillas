@@ -5,10 +5,11 @@
  */
 
 import { subscribe } from '../../store.js';
-import { dashboard, etapaActiva } from '../../maestra.js';
+import { dashboard, etapaActiva, setEtapa } from '../../maestra.js';
 import { money, esc, todayISO } from '../../utils.js';
 import { card } from '../../ui.js';
 import { navigate } from '../../router.js';
+import { ETAPAS_MAESTRA } from '../../config.js';
 
 export function render(container) {
   let mes = todayISO().slice(0, 7);
@@ -39,12 +40,23 @@ export function render(container) {
     }).join('');
 
     container.innerHTML = `
-      <div class="flex items-center justify-between gap-3 flex-wrap mb-4">
+      <div class="flex items-center justify-between gap-3 flex-wrap mb-3">
         <div>
-          <h2 class="text-xl font-semibold">Dashboard — ${esc(etapaActiva())}</h2>
+          <h2 class="text-xl font-semibold">Dashboard</h2>
           <p class="text-sm text-gray-500">Centro operativo · sincronizado en tiempo real con el Control Diario</p>
         </div>
         <input id="m-mes" type="month" class="field !w-44" value="${mes}" />
+      </div>
+
+      <p class="text-xs uppercase tracking-wide text-gray-500 mb-2">Elige la etapa</p>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-3 mb-5">
+        ${ETAPAS_MAESTRA.map((e) => `
+          <button data-etapa="${esc(e)}"
+            class="px-4 py-3 rounded-xl border text-sm font-semibold text-center transition ${e === etapaActiva()
+              ? 'bg-brand text-white border-brand shadow'
+              : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 hover:border-brand hover:shadow-sm'}">
+            ${esc(e)}
+          </button>`).join('')}
       </div>
 
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
@@ -80,6 +92,8 @@ export function render(container) {
 
     container.querySelectorAll('[data-go]').forEach((el) =>
       el.addEventListener('click', () => navigate(el.dataset.go)));
+    container.querySelectorAll('[data-etapa]').forEach((b) =>
+      b.addEventListener('click', () => { setEtapa(b.dataset.etapa); draw(); }));
     container.querySelector('#m-mes').addEventListener('change', (e) => { mes = e.target.value || mes; draw(); });
 
     renderChart(d.serieIngresosMes);

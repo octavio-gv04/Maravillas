@@ -166,7 +166,9 @@ export const STORAGE_WORKSPACE = 'af.v2.workspace';
 // Etapa activa de la Maestra. Arquitectura lista para Etapa 1 y 2 (Fases 2-4):
 // basta con agregarlas aquí; todo deriva de esta lista sin tocar la lógica.
 export const ETAPA_MAESTRA_DEFAULT = 'Etapa 3';
-export const ETAPAS_MAESTRA = ['Etapa 3']; // futuras: 'Etapa 1 y 2', etc.
+// Etapas seleccionables en el dashboard de la Maestra (mismas que el Control Diario).
+export const ETAPAS_MAESTRA = ['Etapa 1 y 2', 'Etapa 3', 'San Jose', 'Santa Mónica'];
+export const STORAGE_ETAPA_MAESTRA = 'af.v2.etapa_maestra'; // recuerda la etapa elegida
 
 // Estados de catálogo.
 export const ESTADOS_LOTE = ['Disponible', 'Apartado', 'Vendido', 'Cancelado'];
