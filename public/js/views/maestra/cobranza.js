@@ -56,7 +56,7 @@ export function render(container) {
               </tr>`).join('')}
           </tbody>
         </table></div>
-      `) : empty('🎉 No hay clientes con atraso en este segmento')}
+      `) : empty('No hay clientes con atraso en este segmento')}
     `;
 
     container.querySelectorAll('[data-seg]').forEach((b) =>

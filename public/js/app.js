@@ -14,12 +14,15 @@ import { $, prettyDate, todayISO, esc } from './utils.js';
 import { isLogged, login, logout, getSession } from './auth.js';
 import { init as initStore, onStatus } from './store.js';
 import { route, startRouter, navigate, getRoutes, setHome } from './router.js';
+import { iconChip, svgIcon, NAV_ICONS, WORKSPACE_ICONS } from './icons.js';
 
 // --- Vistas del Sistema Diario ---
 import { render as dashboard } from './views/dashboard.js';
 import { render as ingresos } from './views/ingresos.js';
 import { render as gastos } from './views/gastos.js';
 import { render as flujo } from './views/flujo.js';
+import { render as corte } from './views/corte.js';
+import { render as skvo } from './views/skvo.js';
 import { render as conciliacion } from './views/conciliacion.js';
 import { render as historial } from './views/historial.js';
 
@@ -40,6 +43,8 @@ route('dashboard', { title: 'Dashboard', icon: '🏠', render: dashboard, group:
 route('ingresos', { title: 'Ingresos', icon: '📈', render: ingresos, group: 'diario' });
 route('gastos', { title: 'Gastos', icon: '📉', render: gastos, group: 'diario' });
 route('flujo', { title: 'Flujo de efectivo', icon: '💵', render: flujo, group: 'diario' });
+route('corte', { title: 'Corte efectivo', icon: '🧮', render: corte, group: 'diario' });
+route('skvo', { title: 'SKVO', icon: '⚙️', render: skvo, group: 'diario' });
 route('conciliacion', { title: 'Conciliación', icon: '🔗', render: conciliacion, group: 'diario' });
 route('historial', { title: 'Historial', icon: '🕑', render: historial, group: 'diario' });
 
@@ -61,7 +66,7 @@ let currentGroup = 'diario';
 function applyTheme(theme) {
   document.documentElement.classList.toggle('dark', theme === 'dark');
   localStorage.setItem(STORAGE_KEYS.theme, theme);
-  $('#theme-toggle').textContent = theme === 'dark' ? '☀️' : '🌙';
+  $('#theme-toggle').innerHTML = svgIcon(theme === 'dark' ? 'sun' : 'moon', 'w-5 h-5');
 }
 function initTheme() {
   const saved = localStorage.getItem(STORAGE_KEYS.theme)
@@ -77,7 +82,7 @@ function showLogin() {
   screen.innerHTML = `
     <div class="w-full max-w-sm bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-8">
       <div class="text-center mb-6">
-        <div class="text-4xl">🏗️</div>
+        <div class="flex justify-center">${iconChip('building', 'bg-amber-500', 'w-14 h-14', 'w-8 h-8')}</div>
         <h1 class="text-xl font-bold mt-2">Administración Las Maravillas</h1>
         <p class="text-sm text-gray-500">Inicia sesión para continuar</p>
       </div>
@@ -122,13 +127,16 @@ function showWorkspaceChooser() {
   const screen = $('#login-screen');
   screen.classList.remove('hidden');
   const s = getSession();
-  const cardWs = (ws) => `
+  const cardWs = (ws) => {
+    const wi = WORKSPACE_ICONS[ws.key];
+    return `
     <button data-ws="${ws.key}" class="text-left bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 hover:border-brand hover:shadow-xl transition w-full">
-      <div class="text-4xl mb-3">${ws.icon}</div>
+      <div class="mb-3">${wi ? iconChip(wi.name, wi.color, 'w-12 h-12', 'w-7 h-7') : `<span class="text-4xl">${ws.icon}</span>`}</div>
       <h2 class="text-lg font-bold">${esc(ws.label)}</h2>
       <p class="text-sm text-gray-500 mt-1">${esc(ws.desc)}</p>
       <span class="inline-block mt-4 text-brand text-sm font-medium">Entrar →</span>
     </button>`;
+  };
   screen.innerHTML = `
     <div class="w-full max-w-3xl">
       <div class="text-center mb-6">
@@ -150,15 +158,26 @@ function buildNav(group) {
   const nav = $('#nav-menu');
   nav.innerHTML = getRoutes(group)
     .filter(([, def]) => def.icon) // estado-cuenta también se muestra (tiene icono)
-    .map(([path, def]) => `
+    .map(([path, def]) => {
+      const ic = NAV_ICONS[path];
+      const icono = ic ? iconChip(ic.name, ic.color) : `<span>${def.icon}</span>`;
+      return `
       <a class="nav-link" data-path="${path}" href="#/${path}">
-        <span>${def.icon}</span><span>${esc(def.title)}</span>
-      </a>`).join('');
+        ${icono}<span>${esc(def.title)}</span>
+      </a>`;
+    }).join('');
   nav.querySelectorAll('.nav-link').forEach((a) => a.addEventListener('click', () => closeSidebar()));
 
   const s = getSession();
   $('#nav-user').innerHTML = s
-    ? `👤 <strong>${esc(s.name)}</strong><br><span class="opacity-70">${esc(s.role)}</span>` : '';
+    ? `<div class="flex items-center gap-2">
+         ${iconChip('user', 'bg-slate-500')}
+         <div class="leading-tight"><strong>${esc(s.name)}</strong><br><span class="opacity-70">${esc(s.role)}</span></div>
+       </div>` : '';
+
+  // Iconos de los botones del pie (estilo chip, igual que el menú).
+  $('#switch-ws').innerHTML = `${iconChip('refresh', 'bg-sky-500')}<span>Cambiar sistema</span>`;
+  $('#logout-btn').innerHTML = `${iconChip('logout', 'bg-rose-500')}<span>Cerrar sesión</span>`;
 }
 
 function highlightNav(path) {
@@ -196,7 +215,8 @@ function applyWorkspace(wsKey) {
   const ws = WORKSPACES[wsKey] || WORKSPACES.diario;
   currentGroup = ws.group;
   localStorage.setItem(STORAGE_WORKSPACE, ws.key);
-  $('#brand-icon').textContent = ws.icon;
+  const wi = WORKSPACE_ICONS[ws.key];
+  $('#brand-icon').innerHTML = wi ? iconChip(wi.name, wi.color, 'w-8 h-8', 'w-5 h-5') : ws.icon;
   $('#brand-name').textContent = ws.label;
   setHome(ws.home);
   buildNav(ws.group);
@@ -207,7 +227,7 @@ function applyWorkspace(wsKey) {
 async function bootApp(wsKey) {
   $('#login-screen').classList.add('hidden');
   $('#app-shell').classList.remove('hidden');
-  $('#today-label').textContent = '📅 ' + prettyDate(todayISO());
+  $('#today-label').innerHTML = `<span class="inline-flex items-center gap-1.5">${svgIcon('calendar', 'w-4 h-4')} ${prettyDate(todayISO())}</span>`;
 
   if (!started) {
     await initStore();   // hidrata caché + abre stream SSE (una sola vez)

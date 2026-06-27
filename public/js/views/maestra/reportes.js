@@ -8,6 +8,7 @@ import { subscribe, contratos } from '../../store.js';
 import { clientes, cobranza, lotesResumen, pagosEtapa, etapaActiva } from '../../maestra.js';
 import { money, esc, prettyDate, toast } from '../../utils.js';
 import { card, empty, btn, sectionHead, select } from '../../ui.js';
+import { svgIcon } from '../../icons.js';
 
 const TIPOS = ['Clientes', 'Cobranza', 'Lotes', 'Contratos', 'Pagos'];
 
@@ -59,7 +60,7 @@ export function render(container) {
     }, {});
 
     container.innerHTML = `
-      ${sectionHead(`Reportes — ${etapaActiva()}`, btn('⬇ Exportar CSV', 'id="csv"'))}
+      ${sectionHead(`Reportes — ${etapaActiva()}`, btn(`${svgIcon('download', 'w-4 h-4 inline')} Exportar CSV`, 'id="csv"'), 'chartBar', 'bg-violet-500')}
       <div class="grid sm:grid-cols-4 gap-2 mb-4">
         ${select({ label: 'Tipo de reporte', name: 'tipo', options: TIPOS, value: tipo })}
         ${d.periodo ? `

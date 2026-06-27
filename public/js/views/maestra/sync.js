@@ -8,6 +8,7 @@
 import { subscribe, onStatus, getStatusInfo, getHistorial } from '../../store.js';
 import { esc, prettyDate } from '../../utils.js';
 import { card, badge, empty, sectionHead } from '../../ui.js';
+import { iconChip } from '../../icons.js';
 
 export function render(container) {
   let ultimaSync = new Date();
@@ -42,11 +43,11 @@ export function render(container) {
         ${kpi('Estado de conexión', estadoConn)}
         ${kpi('Cola de sincronización', estadoCola)}
         ${kpi('Última actualización', `<span class="tabular-nums">${ultimaSync.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>`, prettyDate(ultimaSync.toISOString().slice(0, 10)))}
-        ${kpi('Canal', '🔌 SSE /api/stream', 'Reconexión automática')}
+        ${kpi('Canal', 'SSE · /api/stream', 'Reconexión automática')}
       </div>
 
       <div class="mt-4">${card(`
-        <h3 class="font-semibold mb-3">📜 Bitácora de eventos <span class="text-sm font-normal text-gray-500">(últimos ${eventos.length})</span></h3>
+        <h3 class="flex items-center gap-2 font-semibold mb-3">${iconChip('list', 'bg-sky-500')}<span>Bitácora de eventos</span> <span class="text-sm font-normal text-gray-500">(últimos ${eventos.length})</span></h3>
         ${eventos.length ? `<div class="table-wrap"><table class="w-full text-sm">
           <thead class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-700">
             <tr><th class="py-2">Fecha</th><th>Hora</th><th>Usuario</th><th>Acción</th><th>Detalle</th></tr>

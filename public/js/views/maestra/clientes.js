@@ -33,7 +33,7 @@ export function render(container) {
     container.innerHTML = `
       ${sectionHead(`Clientes — ${etapaActiva()}`, `<span class="text-sm text-gray-500 self-center">${list.length} de ${all.length}</span>`)}
       <div class="grid sm:grid-cols-3 gap-2 mb-4">
-        <input id="c-q" class="field" placeholder="🔎 Buscar nombre o lote…" value="${esc(q)}" />
+        <input id="c-q" class="field" placeholder="Buscar nombre o lote…" value="${esc(q)}" />
         <select id="c-estado" class="field">
           <option value="">Todos los estados</option>
           ${['Activo', 'Moroso', 'Liquidado'].map((e) => opt(e, fEstado)).join('')}

@@ -7,7 +7,7 @@
 import { gastos, subscribe } from '../store.js';
 import { CAT_GASTOS, METODOS_GASTO, ETAPAS_GASTO, VENDEDORES } from '../config.js';
 import { money, prettyDate, todayISO, esc, toNum, toast, confirmAction } from '../utils.js';
-import { card, btn, btnGhost, field, select, sectionHead, empty } from '../ui.js';
+import { card, btn, btnGhost, field, select, sectionHead, empty, cardTitle, actionBtn } from '../ui.js';
 import { can } from '../auth.js';
 import { catalogoCaptura, keyOf } from '../maestra.js';
 import { imprimirComprobante } from '../recibo.js';
@@ -20,7 +20,7 @@ export function render(container) {
   const formCard = () => {
     const cat = catalogoCaptura();
     return card(`
-    <h2 class="font-semibold mb-3">${editId ? '✏️ Editar gasto' : '➕ Nuevo gasto'}</h2>
+    ${cardTitle(editId ? 'pencil' : 'plus', editId ? 'Editar gasto' : 'Nuevo gasto', 'bg-red-500')}
     <form id="gas-form" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
       ${field({ label: 'Fecha', name: 'fecha', type: 'date', value: todayISO(), attrs: 'required' })}
       ${select({ label: 'Etapa', name: 'etapa', options: ETAPAS_GASTO })}
@@ -59,7 +59,7 @@ export function render(container) {
 
     return card(`
       ${sectionHead(`Gastos (${list.length})`,
-        `<input id="gas-search" class="field !w-56" placeholder="🔍 Buscar..." value="${esc(query)}" />`)}
+        `<input id="gas-search" class="field !w-56" placeholder="Buscar..." value="${esc(query)}" />`, 'trendingDown', 'bg-red-500')}
       <div class="flex gap-2 flex-wrap mb-3">${etapaTabs}</div>
       ${list.length ? `
       <div class="table-wrap">
@@ -83,9 +83,9 @@ export function render(container) {
                 <td class="whitespace-nowrap">${esc(x.metodo)}</td>
                 <td class="text-right font-medium text-red-600">${money(x.monto)}</td>
                 <td class="text-right whitespace-nowrap">
-                  <button data-print="${x.id}" class="px-2 hover:text-brand" title="Imprimir comprobante">🖨️</button>
-                  <button data-edit="${x.id}" class="px-2 hover:text-brand" title="Editar">✏️</button>
-                  ${can('eliminar') ? `<button data-del="${x.id}" class="px-2 hover:text-red-600" title="Eliminar">🗑️</button>` : ''}
+                  ${actionBtn('printer', `data-print="${x.id}"`, 'hover:text-brand', 'Imprimir comprobante')}
+                  ${actionBtn('pencil', `data-edit="${x.id}"`, 'hover:text-brand', 'Editar')}
+                  ${can('eliminar') ? actionBtn('trash', `data-del="${x.id}"`, 'hover:text-red-600', 'Eliminar') : ''}
                 </td>
               </tr>`).join('')}
           </tbody>

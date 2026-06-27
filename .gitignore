@@ -8,3 +8,5 @@ data/db.json
 data/.secret
 data/*.log
 data/db.json.tmp
+data/db.backup-*.json
+data/*.backup*

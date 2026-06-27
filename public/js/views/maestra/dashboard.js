@@ -8,6 +8,7 @@ import { subscribe } from '../../store.js';
 import { dashboard, etapaActiva, setEtapa } from '../../maestra.js';
 import { money, esc, todayISO } from '../../utils.js';
 import { card } from '../../ui.js';
+import { svgIcon } from '../../icons.js';
 import { navigate } from '../../router.js';
 import { ETAPAS_MAESTRA } from '../../config.js';
 
@@ -16,11 +17,12 @@ export function render(container) {
   let chart = null;
   const destroy = () => { try { chart?.destroy(); } catch {} chart = null; };
 
+  // icon = nombre del set de icons.js (chip de color sólido + icono blanco calado).
   const kpi = (label, value, icon, bg, text, onclick = '') => `
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 border-l-4 ${bg.replace('bg-', 'border-l-')} ${onclick ? 'cursor-pointer hover:shadow-md transition' : ''}" ${onclick ? `data-go="${onclick}"` : ''}>
-      <div class="flex items-center gap-2 mb-1.5">
-        <span class="w-6 h-6 shrink-0 rounded-md flex items-center justify-center text-white text-xs ${bg}">${icon}</span>
-        <p class="text-[11px] uppercase tracking-wide text-gray-500 truncate">${esc(label)}</p>
+      <div class="flex items-center gap-2.5 mb-1.5">
+        <span class="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center text-white ${bg}">${svgIcon(icon)}</span>
+        <p class="text-sm font-semibold uppercase tracking-wide text-gray-500 truncate">${esc(label)}</p>
       </div>
       <p class="font-bold ${text} tabular-nums whitespace-nowrap leading-tight" style="font-size:clamp(1.1rem,2.1vw,1.75rem)">${value}</p>
     </div>`;
@@ -60,17 +62,17 @@ export function render(container) {
       </div>
 
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        ${kpi('Clientes activos', d.clientes.activos, '👥', 'bg-blue-500', 'text-blue-600', 'm/clientes')}
-        ${kpi('Clientes morosos', d.clientes.morosos, '⚠️', 'bg-red-500', 'text-red-600', 'm/cobranza')}
-        ${kpi('Cartera por cobrar', money(d.cobranza.cartera), '💳', 'bg-amber-500', 'text-amber-600', 'm/cobranza')}
-        ${kpi('Ingresos del mes', money(d.ingresos.mes), '💲', 'bg-green-500', 'text-green-600')}
+        ${kpi('Clientes activos', d.clientes.activos, 'users', 'bg-blue-500', 'text-blue-600', 'm/clientes')}
+        ${kpi('Clientes morosos', d.clientes.morosos, 'alertTriangle', 'bg-red-500', 'text-red-600', 'm/cobranza')}
+        ${kpi('Cartera por cobrar', money(d.cobranza.cartera), 'creditCard', 'bg-amber-500', 'text-amber-600', 'm/cobranza')}
+        ${kpi('Ingresos del mes', money(d.ingresos.mes), 'cash', 'bg-green-500', 'text-green-600')}
       </div>
 
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mt-3 md:mt-4">
-        ${kpi('Lotes vendidos', `${d.lotes.vendidos}/${d.lotes.total}`, '🏠', 'bg-emerald-500', 'text-emerald-600', 'm/lotes')}
-        ${kpi('Lotes disponibles', d.lotes.disponibles, '🟢', 'bg-teal-500', 'text-teal-600', 'm/lotes')}
-        ${kpi('Contratos activos', d.contratos.activos, '📄', 'bg-indigo-500', 'text-indigo-600', 'm/contratos')}
-        ${kpi('Vencido por cobrar', money(d.cobranza.vencido), '⏰', 'bg-rose-500', 'text-rose-600', 'm/cobranza')}
+        ${kpi('Lotes vendidos', `${d.lotes.vendidos}/${d.lotes.total}`, 'home', 'bg-emerald-500', 'text-emerald-600', 'm/lotes')}
+        ${kpi('Lotes disponibles', d.lotes.disponibles, 'checkCircle', 'bg-teal-500', 'text-teal-600', 'm/lotes')}
+        ${kpi('Contratos activos', d.contratos.activos, 'doc', 'bg-indigo-500', 'text-indigo-600', 'm/contratos')}
+        ${kpi('Vencido por cobrar', money(d.cobranza.vencido), 'clock', 'bg-rose-500', 'text-rose-600', 'm/cobranza')}
       </div>
 
       <div class="grid lg:grid-cols-3 gap-4 mt-4">

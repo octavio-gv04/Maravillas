@@ -5,13 +5,14 @@
 import { getHistorial, subscribe, exportBackup, importBackup, seedFromExcel } from '../store.js';
 import { prettyDate, esc, toast, confirmAction } from '../utils.js';
 import { card, btn, btnGhost, sectionHead, empty } from '../ui.js';
+import { svgIcon } from '../icons.js';
 
 export function render(container) {
   const draw = () => {
     const log = getHistorial();
     container.innerHTML = card(`
       ${sectionHead(`Historial (${log.length})`,
-        `${btn('⬇️ Respaldo', 'id="backup-btn"')} ${btnGhost('⬆️ Restaurar', 'id="restore-btn"')} ${btnGhost('📥 Datos del Excel', 'id="seed-btn"')}`)}
+        `${btn(`${svgIcon('download', 'w-4 h-4 inline')} Respaldo`, 'id="backup-btn"')} ${btnGhost(`${svgIcon('upload', 'w-4 h-4 inline')} Restaurar`, 'id="restore-btn"')} ${btnGhost(`${svgIcon('database', 'w-4 h-4 inline')} Datos del Excel`, 'id="seed-btn"')}`, 'clock', 'bg-amber-500')}
       <input id="restore-file" type="file" accept="application/json" class="hidden" />
       ${log.length ? `
       <div class="table-wrap">

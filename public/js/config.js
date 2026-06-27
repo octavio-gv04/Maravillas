@@ -28,9 +28,15 @@ export const STORAGE_KEYS = {
   queue: 'af.v2.queue',   // cola de cambios pendientes de sincronizar
 };
 
-// Etapas (proyectos / fases del fraccionamiento).
-export const ETAPAS_INGRESO = ['Etapa 1 y 2', 'Etapa 3', 'San Jose', 'Santa Mónica'];
-export const ETAPAS_GASTO = ['General', 'Etapa 1 y 2', 'Etapa 3', 'San Jose', 'Santa Mónica'];
+// Zonas de venta (proyectos / fases del fraccionamiento). Fuente única de verdad:
+// cada zona se captura y se reporta por separado (dashboard, flujo, conciliación);
+// "General" globaliza las cuatro. Para agregar/quitar una zona basta con editar
+// esta lista — los catálogos de abajo y las vistas se derivan de ella.
+export const ZONAS = ['Etapa 1 y 2', 'Etapa 3', 'San José', 'Santa Mónica'];
+
+// Etapas seleccionables al capturar. Ingreso = zonas; Gasto = zonas + "General".
+export const ETAPAS_INGRESO = [...ZONAS];
+export const ETAPAS_GASTO = ['General', ...ZONAS];
 
 // Metodo de pago real del Excel: Efectivo / Depósito (gastos admiten "Otro").
 export const METODOS_INGRESO = ['Efectivo', 'Depósito'];
@@ -57,8 +63,30 @@ export const VENDEDORES = [
   'Leo', 'Sergio', 'Javier', 'Hillary', 'Goyo', 'Ing. Manuel', 'Administración',
 ];
 
-// Quien recibe/entrega el corte del dia.
-export const RECIBIO_CORTE = ['Sergio', 'Javier'];
+// Quien recibe/entrega el corte del dia. "Otro" habilita un campo para especificar.
+export const RECIBIO_CORTE = ['Sergio', 'Javier', 'Otro'];
+
+/* ============================================================================
+ * SKVO — Operación de maquinaria (retro, bulldozer, Tacoma). Caja en efectivo
+ * propia: su efectivo entra/sale del mismo cajón, por eso forma parte del
+ * Corte del Flujo (ver calc.js: resumenDia incluye el efectivo SKVO).
+ * ==========================================================================*/
+
+// Categorías de GASTO SKVO (combustible, refacciones por máquina, pagos semanales).
+export const SKVO_CAT_GASTO = [
+  'Diesel', 'Gasolina Tacoma',
+  'Refacciones Retro', 'Refacciones Tacoma', 'Refacciones Bulldozer',
+  'Semana Juan', 'Semana Leo', 'Otro',
+];
+
+// Categorías de INGRESO SKVO (servicios externos: limpieza, etc.).
+export const SKVO_CAT_INGRESO = ['Limpieza', 'Servicio', 'Otro'];
+
+// Quién entrega/captura el efectivo SKVO.
+export const SKVO_ENTREGO = ['Hillary', 'Sergio', 'Otro'];
+
+// Etapas/destino de un ingreso SKVO ("Externo" para trabajos fuera del fracc.).
+export const SKVO_ETAPAS = [...ZONAS, 'Externo'];
 
 // Agrupacion de categorias de ingreso para el desglose del FLUJO
 // (igual que las celdas E4:E12 del Excel: Promoción agrupa los 3 meses, etc.).
@@ -83,8 +111,11 @@ export const FLUJO_GRUPOS_INGRESO = [
 export const FLUJO_COMISION_CATS = ['Comisión', 'Base'];
 
 /**
- * Etapas que tienen bloque de FLUJO en el Excel y comparten los gastos generales.
- * (El Excel solo modela el flujo de estas dos.) "San Jose" no tiene flujo.
+ * Zonas que COMPARTEN los gastos generales en el modelo del Excel (se dividen
+ * ÷N entre ellas). El Excel solo reparte generales entre estas dos; "San José"
+ * y "Santa Mónica" se reportan por separado pero NO absorben gastos generales.
+ * OJO: esta lista es solo el divisor de generales, NO la lista de zonas a mostrar
+ * (esa es ZONAS). Las vistas separan por ZONAS; el flujo reparte generales por aquí.
  */
 export const FLUJO_ETAPAS = ['Etapa 1 y 2', 'Etapa 3'];
 
@@ -167,7 +198,7 @@ export const STORAGE_WORKSPACE = 'af.v2.workspace';
 // basta con agregarlas aquí; todo deriva de esta lista sin tocar la lógica.
 export const ETAPA_MAESTRA_DEFAULT = 'Etapa 3';
 // Etapas seleccionables en el dashboard de la Maestra (mismas que el Control Diario).
-export const ETAPAS_MAESTRA = ['Etapa 1 y 2', 'Etapa 3', 'San Jose', 'Santa Mónica'];
+export const ETAPAS_MAESTRA = [...ZONAS];
 export const STORAGE_ETAPA_MAESTRA = 'af.v2.etapa_maestra'; // recuerda la etapa elegida
 
 // Estados de catálogo.

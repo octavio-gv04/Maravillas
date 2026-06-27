@@ -10,7 +10,8 @@
 import { subscribe, lotes } from '../../store.js';
 import { lotesResumen, etapaActiva, keyOf } from '../../maestra.js';
 import { money, esc, toast, confirmAction } from '../../utils.js';
-import { card, badge, empty, btn, btnGhost, sectionHead, field, select } from '../../ui.js';
+import { card, badge, empty, btn, btnGhost, sectionHead, field, select, cardTitle } from '../../ui.js';
+import { svgIcon, iconChip } from '../../icons.js';
 import { can } from '../../auth.js';
 import { catalogoCaptura } from '../../maestra.js';
 import { ESTADOS_LOTE, ETAPA_MAESTRA_DEFAULT, VENDEDORES } from '../../config.js';
@@ -93,8 +94,8 @@ export function render(container) {
 
       <div class="flex flex-wrap items-center gap-3 text-xs mb-3">
         <div class="flex rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600">
-          <button id="v-mapa" class="px-3 py-1.5 ${vista === 'mapa' ? 'bg-brand text-white' : ''}">🗺️ Mapa</button>
-          <button id="v-tabla" class="px-3 py-1.5 ${vista === 'tabla' ? 'bg-brand text-white' : ''}">📋 Tabla</button>
+          <button id="v-mapa" class="inline-flex items-center gap-1.5 px-3 py-1.5 ${vista === 'mapa' ? 'bg-brand text-white' : ''}">${svgIcon('map', 'w-4 h-4')} Mapa</button>
+          <button id="v-tabla" class="inline-flex items-center gap-1.5 px-3 py-1.5 ${vista === 'tabla' ? 'bg-brand text-white' : ''}">${svgIcon('list', 'w-4 h-4')} Tabla</button>
         </div>
         ${['Disponible', 'Vendido', 'Inactivo'].map((e) =>
           `<span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded ${tileBg(e)}"></span>${e}</span>`).join('')}
@@ -106,7 +107,7 @@ export function render(container) {
       ${formHTML}
 
       ${vista === 'mapa' ? `<div class="mt-2">${card(`
-        <h3 class="font-semibold mb-3">🗺️ Mapa de lotes <span class="text-sm font-normal text-gray-500">(PLANO · ${(plano?.manzanas || []).length} manzanas)</span></h3>
+        <h3 class="flex items-center gap-2 font-semibold mb-3">${iconChip('map', 'bg-green-500')}<span>Mapa de lotes</span> <span class="text-sm font-normal text-gray-500">(PLANO · ${(plano?.manzanas || []).length} manzanas)</span></h3>
         ${mapaHTML}
       `)}</div>` : `<div class="mt-2">${card(`
         <div class="table-wrap"><table class="w-full text-sm">

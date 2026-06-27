@@ -8,7 +8,8 @@
 import { subscribe, cobranza } from '../../store.js';
 import { estadoCuenta, notasDe } from '../../maestra.js';
 import { money, esc, prettyDate, todayISO, toast } from '../../utils.js';
-import { card, badge, empty, btnGhost, sectionHead } from '../../ui.js';
+import { card, badge, empty, btnGhost, sectionHead, cardTitle } from '../../ui.js';
+import { svgIcon } from '../../icons.js';
 import { navigate, queryParam } from '../../router.js';
 import { getSession } from '../../auth.js';
 
@@ -67,7 +68,7 @@ export function render(container) {
             <p class="text-sm text-gray-500">Lote(s): ${esc(c.lotes.join(', ') || '—')} · Vendedor: ${esc(c.vendedor || '—')}</p>
           </div>
         </div>
-        <div class="flex items-center gap-2">${ec.adelantado ? badge('green', 'Adelantado') : estadoBadge(ec.estado)} ${btnGhost('⬇ CSV', 'id="csv"')}</div>
+        <div class="flex items-center gap-2">${ec.adelantado ? badge('green', 'Adelantado') : estadoBadge(ec.estado)} ${btnGhost(`${svgIcon('download', 'w-4 h-4 inline')} CSV`, 'id="csv"')}</div>
       </div>
 
       <div class="grid md:grid-cols-2 gap-4">
@@ -99,7 +100,7 @@ export function render(container) {
       </div>
 
       <div class="mt-4">${card(`
-        <h3 class="font-semibold mb-1">🧾 Historial de pagos (mes a mes)</h3>
+        ${cardTitle('receipt', 'Historial de pagos (mes a mes)', 'bg-teal-500', 'mb-1')}
         <div class="flex flex-wrap gap-3 text-xs mb-3">
           <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-green-500"></span>Pagos: ${ec.calendario.filter((r) => r.estado === 'pagado').length}</span>
           <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-red-500"></span>Meses vencidos (debe): ${ec.calendario.filter((r) => r.estado === 'vencido').length}</span>
@@ -124,7 +125,7 @@ export function render(container) {
       `)}</div>
 
       <div class="mt-4">${card(`
-        <h3 class="font-semibold mb-3">📞 Notas de seguimiento de cobranza</h3>
+        ${cardTitle('phone', 'Notas de seguimiento de cobranza', 'bg-amber-500')}
         <form id="nota-form" class="flex gap-2 mb-3">
           <input class="field flex-1" name="texto" placeholder="Registrar contacto / compromiso de pago…" required />
           <button class="bg-brand hover:bg-brand-dark text-white px-4 rounded-lg text-sm" type="submit">Agregar</button>

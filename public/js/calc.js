@@ -4,7 +4,7 @@
  * por categoria, comisiones por vendedor y corte diario.
  */
 
-import { ingresos, gastos, cortes } from './store.js';
+import { ingresos, gastos, cortes, skvoIngresos, skvoGastos } from './store.js';
 import { toNum } from './utils.js';
 import {
   FLUJO_GRUPOS_INGRESO, VENDEDORES, FLUJO_ETAPAS, RESUMEN_CONCEPTOS,
@@ -42,8 +42,16 @@ export function resumenDia(iso, etapa) {
   const gastosEfectivo = sum(gas.filter((x) => x.metodo === 'Efectivo'));
   const totalGastos = sum(gas);
 
+  // SKVO: su caja en efectivo forma parte del Corte del Flujo del día. Es un
+  // concepto de DÍA COMPLETO (no se reparte por etapa), así que solo entra
+  // cuando no se filtra por etapa (el corte siempre es del día entero).
+  const skvoIns = etapa ? [] : skvoIngresos.byDate(iso);
+  const skvoGas = etapa ? [] : skvoGastos.byDate(iso);
+  const skvoInEfectivo = sum(skvoIns.filter((x) => x.metodo === 'Efectivo'));
+  const skvoGastosEfectivo = sum(skvoGas.filter((x) => x.metodo === 'Efectivo'));
+
   const neto = totalIngresos - totalGastos;
-  const efectivoEsperado = inEfectivo - gastosEfectivo;
+  const efectivoEsperado = (inEfectivo + skvoInEfectivo) - (gastosEfectivo + skvoGastosEfectivo);
 
   const corte = cortes.byDate(iso);
   const efectivoContado = corte ? toNum(corte.contado) : null;
@@ -55,6 +63,7 @@ export function resumenDia(iso, etapa) {
     ingresos: { efectivo: inEfectivo, deposito: inDeposito, total: totalIngresos },
     gastos: { total: totalGastos, efectivo: gastosEfectivo },
     neto, efectivoEsperado, efectivoContado, diferenciaCaja, corte,
+    skvo: { inEfectivo: skvoInEfectivo, gastosEfectivo: skvoGastosEfectivo },
     conteos: { ingresos: ins.length, gastos: gas.length },
   };
 }
@@ -122,6 +131,63 @@ export function flujoEtapa(etapa, periodo = {}) {
     asignados, totalAsignados,
     totalOperacion, totalEgresos,
     utilidad: totalIngresos - totalEgresos,
+  };
+}
+
+/* ============================================================================
+ * SKVO — métricas para el Dashboard (operación de maquinaria, caja propia).
+ * ==========================================================================*/
+
+/** Resumen SKVO de un día: totales, efectivo neto y lista de movimientos. */
+export function resumenSkvoDia(iso) {
+  const ins = skvoIngresos.byDate(iso);
+  const gas = skvoGastos.byDate(iso);
+  const inEf = sum(ins.filter((x) => x.metodo === 'Efectivo'));
+  const gaEf = sum(gas.filter((x) => x.metodo === 'Efectivo'));
+  const totIn = sum(ins), totGa = sum(gas);
+  return {
+    ingresos: { efectivo: inEf, total: totIn },
+    gastos: { efectivo: gaEf, total: totGa },
+    neto: totIn - totGa, efectivoNeto: inEf - gaEf, // efectivoNeto = aporte al Corte del Flujo
+    movimientos: [
+      ...ins.map((x) => ({ ...x, tipo: 'Ingreso' })),
+      ...gas.map((x) => ({ ...x, tipo: 'Gasto' })),
+    ],
+  };
+}
+
+/** Serie diaria de ingresos/gastos SKVO del mes (gráfica del Dashboard). */
+export function serieSkvoMes(mes) {
+  const { dias } = rangoMes(mes);
+  const labels = [], ing = [], gas = [];
+  for (let d = 1; d <= dias; d++) {
+    const iso = `${mes}-${String(d).padStart(2, '0')}`;
+    labels.push(String(d));
+    ing.push(sum(skvoIngresos.byDate(iso)));
+    gas.push(sum(skvoGastos.byDate(iso)));
+  }
+  return { labels, ingresos: ing, gastos: gas };
+}
+
+/** Resumen SKVO del mes: totales, efectivo neto y desglose de gastos por categoría. */
+export function resumenSkvoMes(mes) {
+  const { desde, hasta } = rangoMes(mes);
+  const inRango = (x) => x.fecha >= desde && x.fecha <= hasta;
+  const ins = skvoIngresos.all().filter(inRango);
+  const gas = skvoGastos.all().filter(inRango);
+  const porCategoria = (list) => {
+    const m = new Map();
+    list.forEach((x) => m.set(x.categoria || '—', (m.get(x.categoria || '—') || 0) + toNum(x.monto)));
+    return [...m.entries()].map(([label, monto]) => ({ label, monto })).sort((a, b) => b.monto - a.monto);
+  };
+  const inEf = sum(ins.filter((x) => x.metodo === 'Efectivo'));
+  const gaEf = sum(gas.filter((x) => x.metodo === 'Efectivo'));
+  const totIn = sum(ins), totGa = sum(gas);
+  return {
+    ingresos: totIn, gastos: totGa, neto: totIn - totGa,
+    efectivoNeto: inEf - gaEf,
+    gastosPorCat: porCategoria(gas), ingresosPorCat: porCategoria(ins),
+    conteos: { ingresos: ins.length, gastos: gas.length },
   };
 }
 

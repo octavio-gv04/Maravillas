@@ -51,3 +51,11 @@
 /* Oculta el spinner nativo feo en inputs number de algunos navegadores no afecta funcionalidad */
 input[type=number]::-webkit-outer-spin-button,
 input[type=number]::-webkit-inner-spin-button { margin:0; }
+
+/* En modo oscuro el icono nativo del calendario (date/month) se ve negro y casi
+   no se nota; lo invertimos a blanco para que resalte sobre el fondo oscuro. */
+.dark input[type=date]::-webkit-calendar-picker-indicator,
+.dark input[type=month]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.6);
+  cursor: pointer;
+}

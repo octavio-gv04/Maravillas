@@ -4,6 +4,7 @@
  */
 
 import { esc } from './utils.js';
+import { iconChip, svgIcon } from './icons.js';
 
 /** Tarjeta-contenedor. */
 export const card = (inner, extra = '') =>
@@ -72,13 +73,29 @@ export function badge(color, label) {
           </span>`;
 }
 
-/** Encabezado de seccion con titulo y acciones a la derecha. */
-export const sectionHead = (title, actions = '') =>
+/**
+ * Título de tarjeta/sección con chip de icono (estilo KPI: chip de color sólido
+ * + icono blanco calado). `icon` es un nombre del set en icons.js.
+ */
+export const cardTitle = (icon, text, color = 'bg-brand', extra = '') =>
+  `<h2 class="flex items-center gap-2 font-semibold mb-3 ${extra}">
+     ${iconChip(icon, color)}<span>${esc(text)}</span>
+   </h2>`;
+
+/** Encabezado de seccion con titulo (opcional con chip de icono) y acciones a la derecha. */
+export const sectionHead = (title, actions = '', icon = '', color = 'bg-brand') =>
   `<div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
-     <h2 class="text-xl font-semibold">${esc(title)}</h2>
+     <h2 class="flex items-center gap-2 text-xl font-semibold">${icon ? iconChip(icon, color) : ''}<span>${esc(title)}</span></h2>
      <div class="flex gap-2">${actions}</div>
    </div>`;
 
+/**
+ * Botón-icono de acción para tablas (editar / eliminar / imprimir…).
+ * Icono de línea (currentColor) que hereda el color del hover.
+ */
+export const actionBtn = (icon, attrs = '', cls = 'hover:text-brand', title = '') =>
+  `<button ${attrs} title="${esc(title)}" class="px-1.5 align-middle ${cls}">${svgIcon(icon, 'w-4 h-4 inline')}</button>`;
+
 /** Mensaje de "sin datos". */
 export const empty = (msg = 'Sin registros') =>
-  `<div class="text-center text-gray-400 py-10 text-sm">📭 ${esc(msg)}</div>`;
+  `<div class="text-center text-gray-400 py-10 text-sm">${svgIcon('list', 'w-8 h-8 inline opacity-40 mb-2')}<br>${esc(msg)}</div>`;

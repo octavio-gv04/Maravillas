@@ -21,10 +21,15 @@ const MAESTRA_SEED_FILE = path.join(__dirname, '..', 'public', 'data', 'maestra-
 
 const EMPTY = () => ({
   ingresos: [], gastos: [], cortes: [], historial: [],
+  // SKVO: operación de maquinaria con caja en efectivo propia (su efectivo forma
+  // parte del Corte del Flujo). Ingresos (limpieza/servicios) y gastos (diésel,
+  // refacciones, pagos semanales) capturados aparte del Sistema Diario.
+  skvoIngresos: [], skvoGastos: [],
   // Datos maestros de la Base de Datos Maestra (Etapa 3). Historial del Excel +
   // pagos nuevos que llegan del Sistema Diario. `pagos` = historial migrado.
   lotes: [], contratos: [], vendedores: [], cobranza: [], pagos: [],
   recibos_seq: 0, folio_ingreso: 100, folio_gasto: 100, folio_contrato: 100,
+  folio_skvo_ingreso: 200, folio_skvo_gasto: 100,
 });
 
 let db = EMPTY();
@@ -134,6 +139,7 @@ export const getState = () => db;
 
 const labels = {
   ingresos: 'Ingreso', gastos: 'Gasto',
+  skvoIngresos: 'Ingreso SKVO', skvoGastos: 'Gasto SKVO',
   lotes: 'Lote', contratos: 'Contrato', vendedores: 'Vendedor', cobranza: 'Nota de cobranza',
 };
 
@@ -144,6 +150,10 @@ export function create(col, data, usuario) {
     item.recibo = 'R-' + String(++db.recibos_seq).padStart(5, '0');
   } else if (col === 'gastos') {
     item.folio = ++db.folio_gasto;
+  } else if (col === 'skvoIngresos') {
+    item.folio = ++db.folio_skvo_ingreso;
+  } else if (col === 'skvoGastos') {
+    item.folio = ++db.folio_skvo_gasto;
   } else if (col === 'contratos') {
     item.folio = 'C-' + String(++db.folio_contrato).padStart(4, '0');
   }
@@ -199,6 +209,8 @@ export function replaceAll(obj, usuario, motivo = 'Importación') {
     ...EMPTY(),
     ingresos: obj.ingresos || [],
     gastos: obj.gastos || [],
+    skvoIngresos: obj.skvoIngresos || db.skvoIngresos || [],
+    skvoGastos: obj.skvoGastos || db.skvoGastos || [],
     cortes: obj.cortes || [],
     historial: obj.historial || db.historial,
     lotes: obj.lotes || db.lotes,
@@ -211,6 +223,8 @@ export function replaceAll(obj, usuario, motivo = 'Importación') {
     folio_ingreso: obj.folio_ingreso || 100,
     folio_gasto: obj.folio_gasto || 100,
     folio_contrato: obj.folio_contrato || db.folio_contrato || 100,
+    folio_skvo_ingreso: obj.folio_skvo_ingreso || db.folio_skvo_ingreso || 200,
+    folio_skvo_gasto: obj.folio_skvo_gasto || db.folio_skvo_gasto || 100,
   };
   log(usuario, 'Respaldo', motivo);
   save();

@@ -6,15 +6,15 @@
 
 import { conciliacionMensual } from '../calc.js';
 import { subscribe } from '../store.js';
-import { FLUJO_ETAPAS } from '../config.js';
+import { ZONAS } from '../config.js';
 import { money, esc, todayISO } from '../utils.js';
-import { card, badge } from '../ui.js';
+import { card, badge, cardTitle } from '../ui.js';
 
 export function render(container) {
   let mes = todayISO().slice(0, 7); // 'YYYY-MM'
 
   const draw = () => {
-    const c = conciliacionMensual(mes, FLUJO_ETAPAS);
+    const c = conciliacionMensual(mes, ZONAS);
 
     const th = (t, cls = '') => `<th class="py-2 px-3 ${cls}">${esc(t)}</th>`;
     const tdMoney = (v, cls = '') => `<td class="px-3 py-1.5 text-right tabular-nums ${cls}">${money(v)}</td>`;
@@ -45,7 +45,7 @@ export function render(container) {
       </div>
 
       ${card(`
-        <h2 class="font-semibold mb-3">📊 Ingresos por concepto y etapa</h2>
+        ${cardTitle('chartBar', 'Ingresos por concepto y etapa', 'bg-violet-500')}
         <div class="table-wrap">
           <table class="w-full text-sm">
             <thead class="text-left text-gray-500 border-b-2 border-gray-200 dark:border-gray-700">
@@ -63,7 +63,7 @@ export function render(container) {
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
         ${card(`
-          <h2 class="font-semibold mb-3">🔗 Resultado por etapa</h2>
+          ${cardTitle('link', 'Resultado por etapa', 'bg-blue-500')}
           <div class="table-wrap">
             <table class="w-full text-sm">
               <thead class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-700">
@@ -83,7 +83,7 @@ export function render(container) {
         `)}
 
         ${card(`
-          <h2 class="font-semibold mb-3">✔️ Verificación de conciliación</h2>
+          ${cardTitle('checkCircle', 'Verificación de conciliación', 'bg-green-500')}
           <p class="text-xs text-gray-500 mb-3">Total de ingresos menos la suma del desglose por concepto. Debe ser 0 en cada etapa.</p>
           <div class="space-y-2">
             ${c.etapas.map((e, i) => {

@@ -23,7 +23,7 @@ export function render(container) {
     container.innerHTML = `
       ${sectionHead('Auditoría', `<span class="text-sm text-gray-500 self-center">${list.length} de ${all.length} registros</span>`)}
       <div class="grid sm:grid-cols-2 gap-2 mb-4">
-        <input id="a-q" class="field" placeholder="🔎 Buscar usuario o detalle…" value="${esc(q)}" />
+        <input id="a-q" class="field" placeholder="Buscar usuario o detalle…" value="${esc(q)}" />
         <select id="a-accion" class="field">
           <option value="">Todas las acciones</option>
           ${acciones.map((a) => `<option value="${esc(a)}" ${a === fAccion ? 'selected' : ''}>${esc(a)}</option>`).join('')}

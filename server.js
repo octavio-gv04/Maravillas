@@ -88,7 +88,7 @@ app.post('/api/reseed', requireAuth, requirePerm('eliminar'), (req, res) => {
 
 // ---------- CRUD de colecciones ----------
 // ingresos/gastos = Sistema Diario · lotes/contratos/vendedores/cobranza = Base de Datos Maestra.
-const COLS = new Set(['ingresos', 'gastos', 'lotes', 'contratos', 'vendedores', 'cobranza', 'pagos']);
+const COLS = new Set(['ingresos', 'gastos', 'skvoIngresos', 'skvoGastos', 'lotes', 'contratos', 'vendedores', 'cobranza', 'pagos']);
 
 app.post('/api/:col', requireAuth, requirePerm('crear'), (req, res) => {
   if (!COLS.has(req.params.col)) return res.status(404).json({ error: 'Colección inválida' });

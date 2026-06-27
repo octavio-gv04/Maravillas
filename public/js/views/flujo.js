@@ -6,12 +6,12 @@
 
 import { flujoEtapa } from '../calc.js';
 import { subscribe } from '../store.js';
-import { FLUJO_ETAPAS } from '../config.js';
+import { ZONAS } from '../config.js';
 import { money, esc, todayISO } from '../utils.js';
-import { card, badge } from '../ui.js';
+import { card, badge, cardTitle } from '../ui.js';
 
 export function render(container) {
-  let etapa = FLUJO_ETAPAS[1] || FLUJO_ETAPAS[0]; // "Etapa 3" por defecto
+  let etapa = ZONAS[1] || ZONAS[0]; // "Etapa 3" por defecto
   let desde = '';
   let hasta = '';
 
@@ -22,7 +22,7 @@ export function render(container) {
     const f = flujoEtapa(etapa, { desde: desde || undefined, hasta: hasta || undefined });
     const conciliado = Math.abs(f.conciliacion) < 0.01;
 
-    const etapaTabs = FLUJO_ETAPAS.map((e) =>
+    const etapaTabs = ZONAS.map((e) =>
       `<button data-etapa="${esc(e)}" class="px-3 py-1.5 rounded-lg text-sm border ${e === etapa ? 'bg-brand text-white border-brand' : 'border-gray-300 dark:border-gray-600'}">${esc(e)}</button>`).join('');
 
     container.innerHTML = `
@@ -36,7 +36,7 @@ export function render(container) {
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <!-- INGRESOS -->
         ${card(`
-          <h2 class="font-semibold text-green-600 mb-2">📈 Ingresos — ${esc(etapa)}</h2>
+          ${cardTitle('ingreso', `Ingresos — ${etapa}`, 'bg-green-500')}
           ${row('Efectivo', f.ingresos.efectivo)}
           ${row('Depósito', f.ingresos.deposito)}
           ${row('Total', f.ingresos.total, 'font-bold border-t border-gray-200 dark:border-gray-700 mt-1 pt-1')}
@@ -52,7 +52,7 @@ export function render(container) {
 
         <!-- EGRESOS -->
         ${card(`
-          <h2 class="font-semibold text-red-600 mb-2">📉 Egresos — ${esc(etapa)}</h2>
+          ${cardTitle('gasto', `Egresos — ${etapa}`, 'bg-red-500')}
           <p class="text-xs uppercase text-gray-400 mb-1">Comisiones (Comisión + Base)</p>
           ${f.comisiones.length ? `
             <table class="w-full text-sm">
@@ -95,7 +95,7 @@ export function render(container) {
         ${card(`
           <div class="flex items-center justify-between flex-wrap gap-2">
             <div>
-              <h2 class="font-semibold">⚖️ Balance — ${esc(etapa)}</h2>
+              ${cardTitle('scale', `Balance — ${etapa}`, 'bg-amber-500')}
               <p class="text-xs text-gray-500 mt-1">Ingresos ${money(f.ingresos.total)} − Egresos ${money(f.totalEgresos)}</p>
             </div>
             <span class="text-2xl font-bold ${f.utilidad >= 0 ? 'text-green-600' : 'text-red-600'} tabular-nums">${money(f.utilidad)}</span>

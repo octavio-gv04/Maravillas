@@ -8,6 +8,7 @@ import { subscribe, vendedores } from '../../store.js';
 import { vendedoresResumen, clientesDeVendedor, etapaActiva, keyOf } from '../../maestra.js';
 import { money, esc, prettyDate, toast, confirmAction } from '../../utils.js';
 import { card, badge, empty, btn, btnGhost, sectionHead, field } from '../../ui.js';
+import { iconChip } from '../../icons.js';
 import { can } from '../../auth.js';
 import { navigate } from '../../router.js';
 
@@ -96,7 +97,7 @@ export function render(container) {
     const totalPagado = cli.reduce((a, c) => a + (c.totalPagado || 0), 0);
     return `<div class="mt-4">${card(`
       <div class="flex items-center justify-between mb-3 gap-2 flex-wrap">
-        <h3 class="font-semibold">👥 Clientes de ${esc(nombre)} <span class="text-sm font-normal text-gray-500">(${cli.length})</span></h3>
+        <h3 class="flex items-center gap-2 font-semibold">${iconChip('users', 'bg-sky-500')}<span>Clientes de ${esc(nombre)}</span> <span class="text-sm font-normal text-gray-500">(${cli.length})</span></h3>
         <span class="text-sm text-gray-500">Pagado: <strong class="text-green-600">${money(totalPagado)}</strong> · Saldo: <strong class="text-red-600">${money(totalSaldo)}</strong></span>
       </div>
       ${cli.length ? `<div class="table-wrap"><table class="w-full text-sm">

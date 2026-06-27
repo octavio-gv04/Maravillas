@@ -19,6 +19,7 @@ import { getToken, logout } from './auth.js';
 // (lotes/contratos/vendedores/cobranza). historial es la bitácora/auditoría compartida.
 const EMPTY_CACHE = () => ({
   ingresos: [], gastos: [], cortes: [], historial: [],
+  skvoIngresos: [], skvoGastos: [],
   lotes: [], contratos: [], vendedores: [], cobranza: [], pagos: [],
 });
 let cache = EMPTY_CACHE();
@@ -169,6 +170,8 @@ function makeCollection(col) {
 
 export const ingresos = makeCollection('ingresos');
 export const gastos = makeCollection('gastos');
+export const skvoIngresos = makeCollection('skvoIngresos');
+export const skvoGastos = makeCollection('skvoGastos');
 
 // Colecciones de la Base de Datos Maestra (datos maestros de Etapa 3).
 export const lotes = makeCollection('lotes');
