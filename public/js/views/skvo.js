@@ -194,7 +194,7 @@ export function render(container) {
           }
         : {
             fecha: f.fecha.value, categoria: f.categoria.value, monto: toNum(f.monto.value),
-            metodo: f.metodo.value, etapa: f.etapa.value, lote: f.lote.value.trim(),
+            metodo: f.metodo.value, etapa: f.etapa.value, lote: f.lote.value.trim().toUpperCase(),
             cliente: f.cliente.value.trim(), captura: f.captura.value,
             concepto: f.categoria.value,
           };

@@ -35,10 +35,12 @@ export const btnGhost = (label, attrs = '') =>
 export function field({ label, name, type = 'text', value = '', attrs = '', placeholder = '' }) {
   // En inputs nativos de fecha forzamos locale mexicano (dd/mm/aaaa) en Safari/Chrome.
   const lang = (type === 'date' || type === 'month') ? 'lang="es-MX"' : '';
+  // Las claves de lote se ven y se guardan en MAYÚSCULAS (uniformidad).
+  const up = (name === 'lote' || name === 'numero') ? 'style="text-transform:uppercase"' : '';
   return `
     <label class="block">
       <span class="text-xs font-medium text-gray-600 dark:text-gray-300">${esc(label)}</span>
-      <input class="field mt-1" type="${type}" name="${name}" value="${esc(value)}" ${lang}
+      <input class="field mt-1" type="${type}" name="${name}" value="${esc(value)}" ${lang} ${up}
              placeholder="${esc(placeholder)}" ${attrs} />
     </label>`;
 }

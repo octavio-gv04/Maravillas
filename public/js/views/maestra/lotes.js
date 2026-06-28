@@ -147,7 +147,7 @@ export function render(container) {
       e.preventDefault();
       const f = e.target;
       const data = {
-        numero: f.numero.value.trim(), manzana: f.manzana.value.trim(),
+        numero: f.numero.value.trim().toUpperCase(), manzana: f.manzana.value.trim().toUpperCase(),
         superficie: f.superficie.value, precio: f.precio.value,
         cliente: f.cliente.value.trim(), vendedor: f.vendedor.value.trim(),
         estado: f.estado.value, etapa: editing.etapa || ETAPA_MAESTRA_DEFAULT,

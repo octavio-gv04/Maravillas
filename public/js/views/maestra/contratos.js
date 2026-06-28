@@ -32,7 +32,7 @@ export function render(container) {
         <label class="block"><span class="text-xs font-medium text-gray-600 dark:text-gray-300">Cliente</span>
           <input class="field mt-1" name="cliente" list="dl-cli" value="${esc(editing.cliente || '')}" required /></label>
         <label class="block"><span class="text-xs font-medium text-gray-600 dark:text-gray-300">Lote</span>
-          <input class="field mt-1" name="lote" list="dl-lote" value="${esc(editing.lote || '')}" required /></label>
+          <input class="field mt-1 uppercase" name="lote" list="dl-lote" value="${esc(editing.lote || '')}" required /></label>
         ${field({ label: 'Fecha de firma', name: 'fechaFirma', type: 'date', value: editing.fechaFirma || todayISO() })}
         ${field({ label: 'Precio', name: 'precio', type: 'number', value: editing.precio || '', attrs: 'step="0.01"' })}
         ${field({ label: 'Enganche', name: 'enganche', type: 'number', value: editing.enganche || '', attrs: 'step="0.01"' })}
@@ -90,7 +90,7 @@ export function render(container) {
       e.preventDefault();
       const f = e.target;
       const data = {
-        cliente: f.cliente.value.trim(), lote: f.lote.value.trim(), fechaFirma: f.fechaFirma.value,
+        cliente: f.cliente.value.trim(), lote: f.lote.value.trim().toUpperCase(), fechaFirma: f.fechaFirma.value,
         precio: f.precio.value, enganche: f.enganche.value, plazo: f.plazo.value,
         mensualidad: f.mensualidad.value, estado: f.estado.value, etapa: editing.etapa || etapaActiva(),
       };
