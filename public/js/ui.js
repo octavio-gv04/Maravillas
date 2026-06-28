@@ -101,3 +101,75 @@ export const actionBtn = (icon, attrs = '', cls = 'hover:text-brand', title = ''
 /** Mensaje de "sin datos". */
 export const empty = (msg = 'Sin registros') =>
   `<div class="text-center text-gray-400 py-10 text-sm">${svgIcon('list', 'w-8 h-8 inline opacity-40 mb-2')}<br>${esc(msg)}</div>`;
+
+const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const mesBtnCls = (active) =>
+  `rounded-lg py-1.5 text-sm transition ${active ? 'bg-brand text-white' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`;
+
+/**
+ * Selector de mes como MENÚ EMERGENTE: un botón "Mes Año" que abre un popup con
+ * navegación de año (‹ ›) y una cuadrícula de meses. Reemplaza a
+ * `<input type="month">`, que macOS Safari NO soporta. Wirearlo con wireMonthNav.
+ * @param {string} mes 'YYYY-MM'
+ */
+export function monthNav(mes) {
+  const [y, m] = mes.split('-').map(Number);
+  const grid = MESES.map((nm, i) =>
+    `<button type="button" data-mes-pick="${i + 1}" class="${mesBtnCls(i + 1 === m)}">${nm.slice(0, 3)}</button>`).join('');
+  const yBtn = 'rounded-lg w-8 h-8 inline-flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition';
+  return `
+    <div class="relative inline-block" data-mesnav>
+      <button type="button" data-mes-trigger class="field !w-44 inline-flex items-center justify-between gap-2 cursor-pointer">
+        <span data-mes-label>${MESES[m - 1]} ${y}</span>${svgIcon('chevronDown', 'w-4 h-4 opacity-60 shrink-0')}
+      </button>
+      <div data-mes-panel class="hidden absolute z-30 mt-1 left-0 w-64 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl p-3">
+        <div class="flex items-center justify-between mb-2">
+          <button type="button" data-mes-yprev class="${yBtn}" title="Año anterior">${svgIcon('chevronLeft', 'w-4 h-4')}</button>
+          <span data-mes-year class="font-semibold tabular-nums">${y}</span>
+          <button type="button" data-mes-ynext class="${yBtn}" title="Año siguiente">${svgIcon('chevronRight', 'w-4 h-4')}</button>
+        </div>
+        <div class="grid grid-cols-3 gap-1" data-mes-grid>${grid}</div>
+      </div>
+    </div>`;
+}
+
+/** Conecta un monthNav (popup): llama onChange('YYYY-MM') al elegir un mes. */
+export function wireMonthNav(root, mes, onChange) {
+  const el = root.querySelector('[data-mesnav]');
+  if (!el) return;
+  const [cy, cm] = mes.split('-').map(Number);
+  const panel = el.querySelector('[data-mes-panel]');
+  const yearLbl = el.querySelector('[data-mes-year]');
+  const grid = el.querySelector('[data-mes-grid]');
+  let viewYear = cy;
+  let onDoc = null;
+
+  const highlight = () => {
+    yearLbl.textContent = viewYear;
+    grid.querySelectorAll('[data-mes-pick]').forEach((b) => {
+      b.className = mesBtnCls(viewYear === cy && Number(b.dataset.mesPick) === cm);
+    });
+  };
+  const close = () => {
+    panel.classList.add('hidden');
+    if (onDoc) { document.removeEventListener('mousedown', onDoc); onDoc = null; }
+  };
+  const open = () => {
+    viewYear = cy; highlight();
+    panel.classList.remove('hidden');
+    onDoc = (ev) => { if (!el.contains(ev.target)) close(); };
+    document.addEventListener('mousedown', onDoc);
+  };
+
+  el.querySelector('[data-mes-trigger]').addEventListener('click', () =>
+    panel.classList.contains('hidden') ? open() : close());
+  el.querySelector('[data-mes-yprev]').addEventListener('click', () => { viewYear--; highlight(); });
+  el.querySelector('[data-mes-ynext]').addEventListener('click', () => { viewYear++; highlight(); });
+  grid.querySelectorAll('[data-mes-pick]').forEach((b) =>
+    b.addEventListener('click', () => {
+      const m = Number(b.dataset.mesPick);
+      close();
+      onChange(`${viewYear}-${String(m).padStart(2, '0')}`);
+    }));
+}

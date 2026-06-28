@@ -244,7 +244,7 @@ export function serieMesPorDia(mes, etapasList) {
  */
 export function resumenMes(mes, etapasList) {
   const periodo = rangoMes(mes);
-  let ingr = 0, egresos = 0, utilidad = 0, abonos = 0, devoluciones = 0;
+  let ingr = 0, abonos = 0, devoluciones = 0;
   // VENDIDOS = lotes vendidos en el mes (categorías CAT_VENTA_LOTE: Enganche,
   // Promo 1er Mes, Contado), sin importar si tienen vendedor asignado. Las
   // parcialidades posteriores (Enganche Parcial, Promo 2do/3er Mes) NO cuentan.
@@ -255,8 +255,6 @@ export function resumenMes(mes, etapasList) {
   for (const etapa of etapasList) {
     const f = flujoEtapa(etapa, { desde: periodo.desde, hasta: periodo.hasta });
     ingr += f.ingresos.total;
-    egresos += f.totalEgresos;
-    utilidad += f.utilidad;
 
     const insM = filtrar(ingresos.all(), { etapa, desde: periodo.desde, hasta: periodo.hasta });
     const gasM = filtrar(gastos.all(), { etapa, desde: periodo.desde, hasta: periodo.hasta });
@@ -268,6 +266,17 @@ export function resumenMes(mes, etapasList) {
       conceptos[i].monto += sum(insM.filter((x) => c.cats.some((cat) => ci(cat, x.categoria))));
     });
   }
+
+  // EGRESOS del resumen = TODOS los gastos del mes (no solo los que encajan en el
+  // modelo del Flujo) + gastos SKVO, para que el total no deje fuera categorías de
+  // operación sin zona (Trámites, Contrato…). Vista General (varias etapas) = todo;
+  // vista de una zona = solo esa zona. Utilidad = ingresos − egresos.
+  const enPer = (x) => (!periodo.desde || (x.fecha || '') >= periodo.desde) && (!periodo.hasta || (x.fecha || '') <= periodo.hasta);
+  const esGeneral = etapasList.length > 1;
+  const gView = gastos.all().filter((x) => enPer(x) && (esGeneral || ci(x.etapa, etapasList[0])));
+  const skView = skvoGastos.all().filter((x) => enPer(x) && (esGeneral || ci(x.etapa || SKVO_ETAPA_DEFAULT, etapasList[0])));
+  const egresos = sum(gView) + sum(skView);
+  const utilidad = ingr - egresos;
 
   return {
     mes, conceptos,

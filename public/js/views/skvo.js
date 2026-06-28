@@ -15,7 +15,7 @@ import {
   METODOS_GASTO, METODOS_INGRESO, SKVO_ETAPA_DEFAULT,
 } from '../config.js';
 import { money, prettyDate, todayISO, esc, toNum, toast, confirmAction } from '../utils.js';
-import { card, btn, btnGhost, field, select, sectionHead, empty, cardTitle, actionBtn } from '../ui.js';
+import { card, btn, btnGhost, field, select, sectionHead, empty, cardTitle, actionBtn, monthNav, wireMonthNav } from '../ui.js';
 import { svgIcon } from '../icons.js';
 import { can } from '../auth.js';
 import { imprimirComprobante } from '../recibo.js';
@@ -38,7 +38,7 @@ export function render(container) {
     return card(`
       <div class="flex items-center justify-between flex-wrap gap-3 mb-2">
         ${cardTitle('skvoLogo', `SKVO — resumen de ${mes}`, 'bg-amber-500')}
-        <input id="skvo-mes" type="month" class="field !w-44" value="${mes}" />
+        ${monthNav(mes)}
       </div>
       <div class="grid sm:grid-cols-3 gap-3 text-sm">
         <div>${fila('Ingresos efectivo', inEf)}${fila('Gastos efectivo', gaEf, 'text-red-600')}</div>
@@ -175,9 +175,7 @@ export function render(container) {
   function wire() {
     container.querySelectorAll('[data-sub]').forEach((b) =>
       b.addEventListener('click', () => { sub = b.dataset.sub; editId = null; draw(); }));
-    container.querySelector('#skvo-mes')?.addEventListener('change', (e) => {
-      mes = e.target.value || todayISO().slice(0, 7); draw();
-    });
+    wireMonthNav(container, mes, (m) => { mes = m; draw(); });
 
     const form = container.querySelector('#skvo-form');
     if (editId) {

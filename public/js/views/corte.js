@@ -16,7 +16,7 @@ import { resumenDia } from '../calc.js';
 import { cortes, subscribe } from '../store.js';
 import { RECIBIO_CORTE } from '../config.js';
 import { money, todayISO, toNum, esc, toast } from '../utils.js';
-import { card } from '../ui.js';
+import { card, monthNav, wireMonthNav } from '../ui.js';
 
 // "lun, 1 jun 2026" a partir de YYYY-MM-DD (construido en hora local, sin desfase UTC).
 function etiquetaFecha(iso) {
@@ -97,7 +97,7 @@ export function render(container) {
         <h1 class="text-lg font-bold">Efectivo, entrega y nota</h1>
         <span class="text-sm text-gray-400">·</span>
         <label class="text-sm text-gray-500">Mes:</label>
-        <input id="corte-mes" type="month" class="field !w-48" value="${mes}" />
+        ${monthNav(mes)}
       </div>
 
       ${card(`
@@ -194,10 +194,7 @@ export function render(container) {
       tr.querySelector('[data-field="observaciones"]').addEventListener('change', () => saveRow(tr));
     });
 
-    container.querySelector('#corte-mes').addEventListener('change', (e) => {
-      mes = e.target.value || todayISO().slice(0, 7);
-      draw();
-    });
+    wireMonthNav(container, mes, (m) => { mes = m; draw(); });
   };
 
   draw();
