@@ -48,6 +48,12 @@ export function render(container) {
             <span>Conciliación (Total − desglose)</span>
             ${badge(conciliado ? 'green' : 'red', conciliado ? money(0) : money(f.conciliacion))}
           </div>
+          ${f.skvo.ingreso ? `
+          <div class="mt-3 pt-2 border-t border-dashed border-gray-300 dark:border-gray-600">
+            <p class="text-xs uppercase text-gray-400 mb-1">SKVO (asignado a esta etapa)</p>
+            ${row('Ingresos SKVO', f.skvo.ingreso)}
+            ${row('Total con SKVO', f.ingresosConSkvo, 'font-semibold border-t border-gray-100 dark:border-gray-700/50 mt-1 pt-1')}
+          </div>` : ''}
         `)}
 
         <!-- EGRESOS -->
@@ -84,6 +90,13 @@ export function render(container) {
             ${f.asignados.filter((g) => g.monto).map((g) => row(g.label, g.monto)).join('') || '<p class="text-sm text-gray-400">Sin gastos asignados</p>'}
             ${row('Total asignados', f.totalAsignados, 'font-medium border-t border-gray-100 dark:border-gray-700/50 mt-1 pt-1')}
           </div>
+
+          ${f.skvo.gasto ? `
+          <div class="mt-3 pt-2 border-t border-dashed border-gray-300 dark:border-gray-600">
+            <p class="text-xs uppercase text-gray-400 mb-1">Gastos SKVO (maquinaria)</p>
+            ${f.skvo.gastoPorCat.map((g) => row(g.label, g.monto)).join('')}
+            ${row('Total SKVO', f.skvo.gasto, 'font-medium border-t border-gray-100 dark:border-gray-700/50 mt-1 pt-1')}
+          </div>` : ''}
 
           ${row('Total de operación', f.totalOperacion, 'font-semibold mt-2')}
           ${row('Total de egresos', f.totalEgresos, 'font-bold text-red-600 border-t-2 border-gray-300 dark:border-gray-600 mt-2 pt-2')}

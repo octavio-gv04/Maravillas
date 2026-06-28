@@ -19,6 +19,8 @@ export const ICONS = {
   trendingDown:'<polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/>',
   cash:       '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01"/><path d="M18 12h.01"/>',
   cog:        '<circle cx="12" cy="12" r="3.2"/><path d="M12 2v3"/><path d="M12 19v3"/><path d="M2 12h3"/><path d="M19 12h3"/><path d="m4.9 4.9 2.1 2.1"/><path d="m17 17 2.1 2.1"/><path d="M19.1 4.9 17 7"/><path d="M7 17l-2.1 2.1"/>',
+  // Excavadora (maquinaria SKVO): orugas + cabina + brazo + cucharón.
+  excavator:  '<rect x="1.5" y="15.5" width="11" height="4" rx="2"/><path d="M5 15.5v-3a1 1 0 0 1 1-1h3v4"/><path d="M9 12.5 15 9.5l3 4.5"/><path d="M18 14c1 .3 2 1 2 2.5"/>',
   link:       '<path d="M9 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M15 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.5-1.5"/>',
   clock:      '<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/>',
   users:      '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
@@ -60,9 +62,17 @@ export const ICONS = {
 export const svgIcon = (name, cls = 'w-5 h-5') =>
   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${cls}">${ICONS[name] || ''}</svg>`;
 
+/**
+ * Logo SKVO (wordmark vectorial, public/img/skvo-logo.svg). Se renderiza RELLENO
+ * con currentColor → blanco sobre el chip. Es ancho, así que se ajusta por ancho.
+ */
+const SKVO_LOGO = `<path d="M236.559,32.686c-.412-.05-.829-.084-1.254-.084h-.855c-.012,0-.024-.001-.036-.001-.015,0-.03.001-.045.001h-24.268c-5.69-.001-10.303,4.612-10.303,10.302h0c0,5.69,4.613,10.303,10.303,10.303h25.203c.019,0,.038-.002.057-.002,4.765.475,8.487,4.496,8.487,9.386,0,5.21-4.224,9.433-9.434,9.433-2.491,0-4.749-.973-6.436-2.55l-.07.064-.722-.722c-4.024-4.024-10.547-4.024-14.571,0h0c-3.969,3.969-4.015,10.365-.155,14.4,5.458,5.691,13.445,9.364,21.953,9.364,16.563,0,29.99-13.426,29.99-29.989,0-15.841-12.284-28.804-27.845-29.905Z"/><path d="M20.602,69.615h46.899c5.69,0,10.303,4.613,10.303,10.303h0c0,5.69-4.613,10.303-10.303,10.303H0l20.602-20.606Z"/><rect x="48.862" y="-7.12" width="20.606" height="88.86" rx="10.303" ry="10.303" transform="translate(96.474 -21.856) rotate(90)"/><rect x="35.94" y="18.247" width="20.606" height="80.787" rx="10.303" ry="10.303" transform="translate(-27.921 49.874) rotate(-45)"/><rect x="82.989" y="0" width="20.606" height="90.221" rx="10.303" ry="10.303"/><rect x="102.819" y="21.741" width="20.606" height="76.694" rx="10.303" ry="10.303" transform="translate(75.622 -62.39) rotate(45)"/><rect x="112.745" y="45.703" width="20.606" height="48.621" rx="10.303" ry="10.303" transform="translate(-13.468 107.513) rotate(-44.999)"/><rect x="142.878" y="21.742" width="20.606" height="76.694" rx="10.303" ry="10.303" transform="translate(2.376 125.914) rotate(-45)"/><rect x="181.25" y="24.954" width="20.606" height="72.93" rx="10.303" ry="10.303" transform="translate(283.569 240.298) rotate(-134.999)"/><circle cx="131.612" cy="9.434" r="9.434"/>`;
+export const skvoLogo = (cls = 'w-5') =>
+  `<svg viewBox="0 0 264.404 92.58" fill="currentColor" preserveAspectRatio="xMidYMid meet" class="${cls}">${SKVO_LOGO}</svg>`;
+
 /** Chip de color sólido con el icono blanco calado (estilo KPI del Dashboard). */
 export const iconChip = (name, bg = 'bg-brand', sizeCls = 'w-7 h-7', iconCls = 'w-4 h-4') =>
-  `<span class="${sizeCls} shrink-0 rounded-lg flex items-center justify-center text-white ${bg}">${svgIcon(name, iconCls)}</span>`;
+  `<span class="${sizeCls} shrink-0 rounded-lg flex items-center justify-center text-white ${bg}">${name === 'skvoLogo' ? skvoLogo() : svgIcon(name, iconCls)}</span>`;
 
 /** Icono + color de cada ruta del menú lateral (por `path`). */
 export const NAV_ICONS = {
@@ -71,9 +81,9 @@ export const NAV_ICONS = {
   gastos:           { name: 'trendingDown',color: 'bg-red-500' },
   flujo:            { name: 'cash',        color: 'bg-emerald-500' },
   corte:            { name: 'calculator',  color: 'bg-blue-500' },
-  skvo:             { name: 'cog',         color: 'bg-slate-500' },
+  skvo:             { name: 'skvoLogo',    color: 'bg-amber-500' },
   conciliacion:     { name: 'link',        color: 'bg-violet-500' },
-  historial:        { name: 'clock',       color: 'bg-amber-500' },
+  historial:        { name: 'clock',       color: 'bg-orange-500' },
   'm/dashboard':    { name: 'home',        color: 'bg-blue-500' },
   'm/clientes':     { name: 'users',       color: 'bg-sky-500' },
   'm/lotes':        { name: 'grid',        color: 'bg-green-500' },

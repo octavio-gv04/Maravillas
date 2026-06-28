@@ -9,6 +9,7 @@ import { toNum } from './utils.js';
 import {
   FLUJO_GRUPOS_INGRESO, VENDEDORES, FLUJO_ETAPAS, RESUMEN_CONCEPTOS,
   FLUJO_COMISION_CATS, FLUJO_GENERALES, FLUJO_ASIGNADOS, FLUJO_ETAPAS_COMPARTIDAS,
+  SKVO_ETAPA_DEFAULT,
 } from './config.js';
 
 const sum = (list) => list.reduce((acc, x) => acc + toNum(x.monto), 0);
@@ -120,7 +121,21 @@ export function flujoEtapa(etapa, periodo = {}) {
   const totalAsignados = asignados.reduce((a, d) => a + d.monto, 0);
 
   const totalOperacion = totalGenerales + totalAsignados;
-  const totalEgresos = totalComisiones + totalOperacion;
+
+  // --- SKVO asignado a esta etapa (por REGISTRO; cada ingreso/gasto SKVO lleva
+  // su etapa). Los registros sin etapa caen a la etapa por defecto (Etapa 3). ---
+  const enPeriodo = (x) => (!periodo.desde || x.fecha >= periodo.desde) && (!periodo.hasta || x.fecha <= periodo.hasta);
+  const asignadaAqui = (x) => ci(x.etapa || SKVO_ETAPA_DEFAULT, etapa);
+  const skvoIns = skvoIngresos.all().filter((x) => enPeriodo(x) && asignadaAqui(x));
+  const skvoGas = skvoGastos.all().filter((x) => enPeriodo(x) && asignadaAqui(x));
+  const skvoIngreso = sum(skvoIns);
+  const skvoGasto = sum(skvoGas);
+  const mGas = new Map();
+  skvoGas.forEach((x) => mGas.set(x.categoria || '—', (mGas.get(x.categoria || '—') || 0) + toNum(x.monto)));
+  const skvoGastoPorCat = [...mGas.entries()].map(([label, monto]) => ({ label, monto })).sort((a, b) => b.monto - a.monto);
+
+  const totalEgresos = totalComisiones + totalOperacion + skvoGasto;
+  const ingresosConSkvo = totalIngresos + skvoIngreso;
 
   return {
     etapa,
@@ -129,8 +144,9 @@ export function flujoEtapa(etapa, periodo = {}) {
     comisiones, totalComision, totalBase, totalComisiones,
     generales, totalGenerales,
     asignados, totalAsignados,
-    totalOperacion, totalEgresos,
-    utilidad: totalIngresos - totalEgresos,
+    skvo: { ingreso: skvoIngreso, gasto: skvoGasto, gastoPorCat: skvoGastoPorCat },
+    totalOperacion, totalEgresos, ingresosConSkvo,
+    utilidad: ingresosConSkvo - totalEgresos,
   };
 }
 

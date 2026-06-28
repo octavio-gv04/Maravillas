@@ -97,7 +97,7 @@ export function render(container) {
 
       const movs = sd.movimientos.slice().sort((a, b) => (a.folio ?? 0) - (b.folio ?? 0));
       const detalle = `<div class="mt-4">${card(`
-        ${cardTitle('cog', 'Detalle SKVO del día', 'bg-slate-500')}
+        ${cardTitle('skvoLogo', 'Detalle SKVO del día', 'bg-amber-500')}
         ${movs.length ? `
         <div class="table-wrap"><table class="w-full text-sm">
           <thead class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-700">

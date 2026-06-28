@@ -88,6 +88,10 @@ export const SKVO_ENTREGO = ['Hillary', 'Sergio', 'Otro'];
 // Etapas/destino de un ingreso SKVO ("Externo" para trabajos fuera del fracc.).
 export const SKVO_ETAPAS = [...ZONAS, 'Externo'];
 
+// Etapa a la que se asigna el efectivo SKVO en el FLUJO si el mes no tiene
+// una asignación explícita (el usuario puede cambiarla por mes en el módulo SKVO).
+export const SKVO_ETAPA_DEFAULT = 'Etapa 3';
+
 // Agrupacion de categorias de ingreso para el desglose del FLUJO
 // (igual que las celdas E4:E12 del Excel: Promoción agrupa los 3 meses, etc.).
 export const FLUJO_GRUPOS_INGRESO = [
