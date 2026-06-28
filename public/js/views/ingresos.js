@@ -7,7 +7,7 @@
 import { ingresos, lotes, subscribe } from '../store.js';
 import { CAT_INGRESOS, METODOS_INGRESO, ETAPAS_INGRESO, VENDEDORES, CAT_VENTA_LOTE, CAT_VENTA_FORM } from '../config.js';
 import { money, prettyDate, todayISO, esc, toNum, toast, confirmAction } from '../utils.js';
-import { card, btn, btnGhost, field, select, textarea, sectionHead, empty, badge, cardTitle, actionBtn } from '../ui.js';
+import { card, btn, btnGhost, field, select, textarea, sectionHead, empty, badge, cardTitle, actionBtn, monthNav, wireMonthNav } from '../ui.js';
 import { svgIcon } from '../icons.js';
 import { can } from '../auth.js';
 import { catalogoCaptura, keyOf, registrarVentaLote } from '../maestra.js';
@@ -20,6 +20,7 @@ export function render(container) {
   let fEtapa = 'Todas';
   let page = 0;        // página de la tabla (100 por página)
   let _pages = 1;      // total de páginas (lo fija tableCard)
+  let mes = todayISO().slice(0, 7);  // mes de captura mostrado en la tabla
 
   // Lote de la Base Maestra por su clave (para autocompletar / prellenar en Venta).
   const loteDe = (clave) => lotes.all().find((l) => keyOf(l.numero) === keyOf(clave));
@@ -92,6 +93,7 @@ export function render(container) {
 
   const tableCard = () => {
     let list = ingresos.all().sort((a, b) => (b.fecha + (b.creado || '')).localeCompare(a.fecha + (a.creado || '')));
+    list = list.filter((x) => (x.fecha || '').slice(0, 7) === mes);  // solo el mes de captura
     if (fEtapa !== 'Todas') list = list.filter((x) => x.etapa === fEtapa);
     if (query) {
       const q = query.toLowerCase();
@@ -113,7 +115,10 @@ export function render(container) {
     return card(`
       ${sectionHead(`Ingresos (${list.length})`,
         `<input id="ing-search" class="field !w-56" placeholder="Buscar..." value="${esc(query)}" />`, 'trendingUp', 'bg-green-500')}
-      <div class="flex gap-2 flex-wrap mb-3">${etapaTabs}</div>
+      <div class="flex items-center gap-3 mb-3 flex-wrap">
+        ${monthNav(mes)}
+        <div class="flex gap-2 flex-wrap">${etapaTabs}</div>
+      </div>
       ${list.length ? `
       <div class="table-wrap">
         <table class="w-full text-sm">
@@ -343,6 +348,8 @@ export function render(container) {
           toast('Ingreso eliminado', 'warn');
         }
       }));
+
+    wireMonthNav(container, mes, (m) => { mes = m; page = 0; redrawTable(); });
 
     container.querySelector('[data-pg="prev"]')?.addEventListener('click', () => { if (page > 0) { page--; redrawTable(); } });
     container.querySelector('[data-pg="next"]')?.addEventListener('click', () => { if (page < _pages - 1) { page++; redrawTable(); } });

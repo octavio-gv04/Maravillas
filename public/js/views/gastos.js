@@ -9,7 +9,7 @@
 import { gastos, subscribe } from '../store.js';
 import { CAT_GASTOS, METODOS_GASTO, ETAPAS_GASTO, VENDEDORES, ZONAS } from '../config.js';
 import { money, prettyDate, todayISO, esc, toNum, toast, confirmAction } from '../utils.js';
-import { card, btn, btnGhost, field, select, sectionHead, empty, cardTitle, actionBtn } from '../ui.js';
+import { card, btn, btnGhost, field, select, sectionHead, empty, cardTitle, actionBtn, monthNav, wireMonthNav } from '../ui.js';
 import { svgIcon } from '../icons.js';
 import { can } from '../auth.js';
 import { catalogoCaptura, keyOf, infoLoteVenta, cancelarVentaLote } from '../maestra.js';
@@ -22,6 +22,7 @@ export function render(container) {
   let fEtapa = 'Todas';
   let page = 0;        // página de la tabla (100 por página)
   let _pages = 1;      // total de páginas (lo fija tableCard)
+  let mes = todayISO().slice(0, 7);  // mes de captura mostrado en la tabla
 
   const modoTabs = () => `
     <div class="flex gap-2 mb-4">
@@ -81,6 +82,7 @@ export function render(container) {
 
   const tableCard = () => {
     let list = gastos.all().sort((a, b) => (b.fecha + (b.creado || '')).localeCompare(a.fecha + (a.creado || '')));
+    list = list.filter((x) => (x.fecha || '').slice(0, 7) === mes);  // solo el mes de captura
     if (fEtapa !== 'Todas') list = list.filter((x) => x.etapa === fEtapa);
     if (query) {
       const q = query.toLowerCase();
@@ -102,7 +104,10 @@ export function render(container) {
     return card(`
       ${sectionHead(`Gastos (${list.length})`,
         `<input id="gas-search" class="field !w-56" placeholder="Buscar..." value="${esc(query)}" />`, 'trendingDown', 'bg-red-500')}
-      <div class="flex gap-2 flex-wrap mb-3">${etapaTabs}</div>
+      <div class="flex items-center gap-3 mb-3 flex-wrap">
+        ${monthNav(mes)}
+        <div class="flex gap-2 flex-wrap">${etapaTabs}</div>
+      </div>
       ${list.length ? `
       <div class="table-wrap">
         <table class="w-full text-sm">
@@ -322,6 +327,8 @@ export function render(container) {
           toast('Gasto eliminado', 'warn');
         }
       }));
+
+    wireMonthNav(container, mes, (m) => { mes = m; page = 0; redrawTable(); });
 
     container.querySelector('[data-pg="prev"]')?.addEventListener('click', () => { if (page > 0) { page--; redrawTable(); } });
     container.querySelector('[data-pg="next"]')?.addEventListener('click', () => { if (page < _pages - 1) { page++; redrawTable(); } });
