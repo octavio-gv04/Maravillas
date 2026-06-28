@@ -14,11 +14,11 @@
  */
 
 import {
-  ingresos, lotes, contratos, vendedores,
+  ingresos, gastos, lotes, contratos, vendedores,
   cobranza as cobranzaCol, pagos as pagosCol, maestraAsOf,
 } from './store.js';
 import { toNum, todayISO } from './utils.js';
-import { ETAPA_MAESTRA_DEFAULT, ETAPAS_MAESTRA, STORAGE_ETAPA_MAESTRA, AGING_BUCKETS, CAT_ENGANCHE, MAESTRA_ASOF } from './config.js';
+import { ETAPA_MAESTRA_DEFAULT, ETAPAS_MAESTRA, STORAGE_ETAPA_MAESTRA, AGING_BUCKETS, CAT_ENGANCHE, CAT_ABONA_LOTE, CAT_VENTA_LOTE, MAESTRA_ASOF } from './config.js';
 
 // ---------- Etapa activa (selector multi-etapa, recordada en localStorage) ----------
 function _etapaInicial() {
@@ -376,6 +376,133 @@ export function serieIngresosPorDia(mes) {
     data.push(sum(pagosMes.filter((p) => p.fecha === iso)));
   }
   return { labels, data };
+}
+
+/**
+ * Da de alta / actualiza el LOTE como "Vendido" a partir de una venta capturada
+ * en el Diario (categorías Enganche / Promo 1er Mes / Contado). Así el cliente
+ * nuevo entra al padrón de la Maestra (que se deriva de los lotes Vendido) sin
+ * doble captura. NO sobreescribe un cliente ya asignado al lote.
+ *
+ * Datos comerciales (teléfono, email, precio, mensualidad) se guardan cuando se
+ * proveen. Cliente/vendedor/fechaVenta solo se rellenan si están vacíos (no se
+ * sobreescribe un cliente ya asignado).
+ *
+ * @param {{lote:string, cliente:string, vendedor?:string, etapa?:string, fecha?:string,
+ *          telefono?:string, email?:string, precio?:number, mensualidad?:number}} v
+ * @returns {Promise<{action:'create'|'update'|'none', numero:string, cliente:string}|null>}
+ */
+export async function registrarVentaLote({
+  lote, cliente, vendedor = '', etapa = '', fecha = '',
+  telefono = '', email = '', precio, mensualidad,
+} = {}) {
+  const numero = String(lote || '').trim();
+  const nombre = String(cliente || '').trim();
+  if (!numero || !nombre) return null; // sin lote o sin cliente no hay nada que registrar
+
+  const tel = String(telefono || '').trim();
+  const mail = String(email || '').trim();
+  const pre = Number(precio) || 0;
+  const mens = Number(mensualidad) || 0;
+  const lk = keyOf(numero);
+  const existente = lotes.all().find((l) => keyOf(l.numero) === lk);
+
+  if (existente) {
+    const patch = {};
+    if (!ci(existente.estado, 'Vendido')) patch.estado = 'Vendido';
+    if (!String(existente.cliente || '').trim()) patch.cliente = nombre;
+    if (vendedor && !String(existente.vendedor || '').trim()) patch.vendedor = vendedor;
+    if (fecha && !existente.fechaVenta) patch.fechaVenta = fecha;
+    if (tel) patch.telefono = tel;
+    if (mail) patch.email = mail;
+    if (pre) patch.precio = pre;
+    if (mens) patch.mensualidad = mens;
+    if (!Object.keys(patch).length) return { action: 'none', numero, cliente: existente.cliente || nombre };
+    await lotes.update(existente.id, patch);
+    return { action: 'update', numero, cliente: patch.cliente || existente.cliente || nombre };
+  }
+
+  // Lote nuevo: lo creamos ya marcado como Vendido.
+  await lotes.create({
+    numero,
+    manzana: numero.split('-')[0] || '',
+    cliente: nombre,
+    vendedor: vendedor || '',
+    estado: 'Vendido',
+    etapa: etapa || ETAPA_MAESTRA_DEFAULT,
+    fechaVenta: fecha || '',
+    telefono: tel,
+    email: mail,
+    precio: pre || undefined,
+    mensualidad: mens || undefined,
+    origen: 'diario',
+  });
+  return { action: 'create', numero, cliente: nombre };
+}
+
+/**
+ * Información de un lote para una DEVOLUCIÓN: estado/venta, cliente, cuánto ha
+ * pagado, saldo y comisión pagada (maestro + Diario). Alimenta el banner del
+ * formulario de Devolución (igual que el de disponibilidad en Venta).
+ * @param {string} clave clave de lote (p.ej. "M39-L25")
+ */
+export function infoLoteVenta(clave) {
+  const k = keyOf(clave);
+  const gasLote = gastos.all().filter((x) => keyOf(x.lote) === k);
+  const comisionDiario = sum(gasLote.filter((x) => ci(x.categoria, 'Comisión')));
+  const l = lotesResumen().find((x) => keyOf(x.numero) === k);
+  if (l) {
+    return {
+      existe: true,
+      estado: l.estado,
+      vendido: ci(l.estado, 'Vendido'),
+      cliente: l.cliente || '',
+      vendedor: /seleccionar/i.test(l.vendedor || '') ? '' : (l.vendedor || ''),
+      etapa: l.etapa || ETAPA_MAESTRA_DEFAULT,
+      pagado: l.abonado,
+      saldo: l.saldo,
+      comision: toNum(l.comisionMonto) + comisionDiario,
+    };
+  }
+  // No está en el maestro (lote de otra etapa o creado desde el Diario): derivar.
+  const insLote = ingresos.all().filter((x) => keyOf(x.lote) === k);
+  const pagado = sum(insLote.filter((x) => CAT_ABONA_LOTE.some((c) => ci(c, x.categoria))));
+  const venta = insLote.filter((x) => CAT_VENTA_LOTE.some((c) => ci(c, x.categoria)));
+  const ref = venta[0] || insLote[0] || {};
+  return {
+    existe: insLote.length > 0,
+    estado: venta.length ? 'Vendido' : (insLote.length ? 'Con pagos' : 'Disponible'),
+    vendido: venta.length > 0,
+    cliente: ref.cliente || '',
+    vendedor: ref.vendedor || '',
+    etapa: ref.etapa || '',
+    pagado,
+    saldo: 0,
+    comision: comisionDiario,
+  };
+}
+
+/**
+ * Cancela la venta de un lote (DEVOLUCIÓN): lo regresa a `Disponible` y limpia
+ * los datos de la venta. Conserva precio/manzana/superficie (datos del lote en
+ * sí) y NO toca los ingresos ya registrados (el dinero entró; la devolución se
+ * registra aparte como gasto). Decisión del usuario: sin guardar historial del
+ * cliente anterior en el lote.
+ * @param {string} clave clave de lote
+ */
+export async function cancelarVentaLote(clave) {
+  const k = keyOf(clave);
+  const l = lotes.all().find((x) => keyOf(x.numero) === k);
+  if (!l) return { action: 'none', numero: String(clave || '').trim() };
+  await lotes.update(l.id, {
+    estado: 'Disponible',
+    cliente: '', vendedor: '', telefono: '', email: '',
+    fechaVenta: '', fechaCompra: '', fechaTermino: '',
+    pago: 0, debe: 0, abonado: 0, retrasoMeses: 0,
+    enganche: 0, mensualidad: 0, plazo: 0,
+    comisionMonto: 0, comisionPct: 0,
+  });
+  return { action: 'liberado', numero: l.numero };
 }
 
 export { ci, keyOf };

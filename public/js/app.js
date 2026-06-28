@@ -10,7 +10,7 @@
  */
 
 import { STORAGE_KEYS, WORKSPACES, STORAGE_WORKSPACE } from './config.js';
-import { $, prettyDate, todayISO, esc } from './utils.js';
+import { $, prettyDate, todayISO, esc, localizeFormValidation } from './utils.js';
 import { isLogged, login, logout, getSession } from './auth.js';
 import { init as initStore, onStatus } from './store.js';
 import { route, startRouter, navigate, getRoutes, setHome } from './router.js';
@@ -245,6 +245,8 @@ async function bootApp(wsKey) {
 
 // ---------- Listeners globales (una sola vez) ----------
 function wireGlobal() {
+  localizeFormValidation(); // globos de validación nativos en español
+
   $('#theme-toggle').addEventListener('click', () =>
     applyTheme(document.documentElement.classList.contains('dark') ? 'light' : 'dark'));
 

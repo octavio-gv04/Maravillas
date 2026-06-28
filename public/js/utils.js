@@ -71,3 +71,43 @@ export function toast(msg, type = 'info') {
 
 /** Confirmacion simple (envuelve window.confirm para centralizar/cambiar luego). */
 export const confirmAction = (msg) => window.confirm(msg);
+
+// ---------- Validación de formularios en español ----------
+/**
+ * Traduce al español los globos de validación nativos del navegador
+ * ("Please fill out this field", etc.). Se instala UNA vez a nivel documento;
+ * el evento `invalid` no burbujea, por eso se escucha en fase de captura.
+ */
+export function localizeFormValidation() {
+  const mensaje = (el) => {
+    const v = el.validity;
+    if (v.valueMissing) {
+      return (el.tagName === 'SELECT' || el.type === 'checkbox' || el.type === 'radio')
+        ? 'Selecciona una opción.' : 'Por favor, llena este campo.';
+    }
+    if (v.typeMismatch) {
+      if (el.type === 'email') return 'Escribe un correo electrónico válido.';
+      if (el.type === 'url') return 'Escribe una dirección web válida.';
+      return 'El formato no es válido.';
+    }
+    if (v.rangeUnderflow) return `El valor debe ser mayor o igual a ${el.min}.`;
+    if (v.rangeOverflow) return `El valor debe ser menor o igual a ${el.max}.`;
+    if (v.stepMismatch) return 'El valor no es válido.';
+    if (v.tooShort) return `Usa al menos ${el.minLength} caracteres.`;
+    if (v.tooLong) return `Usa máximo ${el.maxLength} caracteres.`;
+    if (v.patternMismatch) return 'El formato solicitado no coincide.';
+    if (v.badInput) return 'Escribe un valor válido.';
+    return 'Revisa este campo.';
+  };
+  document.addEventListener('invalid', (e) => {
+    const el = e.target;
+    if (el && typeof el.setCustomValidity === 'function') el.setCustomValidity(mensaje(el));
+  }, true);
+  // Limpia el mensaje custom al editar para que el campo pueda volver a ser válido.
+  const limpiar = (e) => {
+    const el = e.target;
+    if (el && typeof el.setCustomValidity === 'function') el.setCustomValidity('');
+  };
+  document.addEventListener('input', limpiar, true);
+  document.addEventListener('change', limpiar, true);
+}

@@ -227,6 +227,11 @@ export const CAT_ENGANCHE = ['Enganche', 'Enganche Parcial'];
 // (la venta se contabiliza cuando se registra el 'Enganche').
 export const CAT_VENTA_LOTE = ['Enganche', 'Promo 1er Mes', 'Contado'];
 
+// Categorías que se capturan desde el formulario "Venta" del Diario (alta de
+// cliente + lote nuevo). El resto de categorías se capturan como "Pago".
+// Coincide con CAT_VENTA_LOTE: toda venta (incluido Contado) se captura en Venta.
+export const CAT_VENTA_FORM = ['Enganche', 'Promo 1er Mes', 'Contado'];
+
 /**
  * Fecha de corte del Excel maestro: los pagos del Control Diario con fecha
  * posterior se consideran NUEVOS y actualizan la Maestra (evita doble conteo).

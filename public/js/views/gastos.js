@@ -1,31 +1,42 @@
 /**
  * views/gastos.js — Registro de gastos (replica hoja EGRESOS del Excel).
+ * Dos modos: «Gasto» (egreso normal) y «Devolución» (cancela la venta de un
+ * lote y lo regresa a Disponible, devolviendo una cantidad al cliente).
  * Campos: Folio, Fecha, Cantidad, Etapa, Lote, Categoría, Recibe(persona),
  *         Tipo(metodo), Concepto, Beneficiario.
  */
 
 import { gastos, subscribe } from '../store.js';
-import { CAT_GASTOS, METODOS_GASTO, ETAPAS_GASTO, VENDEDORES } from '../config.js';
+import { CAT_GASTOS, METODOS_GASTO, ETAPAS_GASTO, VENDEDORES, ZONAS } from '../config.js';
 import { money, prettyDate, todayISO, esc, toNum, toast, confirmAction } from '../utils.js';
 import { card, btn, btnGhost, field, select, sectionHead, empty, cardTitle, actionBtn } from '../ui.js';
 import { svgIcon } from '../icons.js';
 import { can } from '../auth.js';
-import { catalogoCaptura, keyOf } from '../maestra.js';
+import { catalogoCaptura, keyOf, infoLoteVenta, cancelarVentaLote } from '../maestra.js';
 import { imprimirComprobante } from '../recibo.js';
 
 export function render(container) {
   let editId = null;
+  let modo = 'gasto';   // 'gasto' | 'devolucion'
   let query = '';
   let fEtapa = 'Todas';
 
+  const modoTabs = () => `
+    <div class="flex gap-2 mb-4">
+      ${[['gasto', 'trendingDown', 'Gasto'], ['devolucion', 'refresh', 'Devolución']].map(([m, ic, label]) =>
+        `<button data-modo="${m}" class="inline-flex items-center gap-1.5 px-4 min-h-[2.5rem] rounded-lg text-sm border ${m === modo ? 'bg-brand text-white border-brand' : 'border-gray-300 dark:border-gray-600'}">${svgIcon(ic, 'w-4 h-4')} ${label}</button>`).join('')}
+    </div>`;
+
   const formCard = () => {
     const cat = catalogoCaptura();
-    return card(`
-    ${cardTitle(editId ? 'pencil' : 'plus', editId ? 'Editar gasto' : 'Nuevo gasto', 'bg-red-500')}
-    <form id="gas-form" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+    const esDev = modo === 'devolucion';
+    const titulo = editId ? (esDev ? 'Editar devolución' : 'Editar gasto') : (esDev ? 'Nueva devolución' : 'Nuevo gasto');
+    const catGasto = CAT_GASTOS.filter((c) => c !== 'Devolución');
+
+    const camposGasto = `
       ${field({ label: 'Fecha', name: 'fecha', type: 'date', value: todayISO(), attrs: 'required' })}
       ${select({ label: 'Etapa', name: 'etapa', options: ETAPAS_GASTO })}
-      ${select({ label: 'Categoría', name: 'categoria', options: CAT_GASTOS })}
+      ${select({ label: 'Categoría', name: 'categoria', options: catGasto })}
       ${field({ label: 'Cantidad', name: 'monto', type: 'number', attrs: 'step="0.01" min="0" required' })}
       ${field({ label: 'Lote', name: 'lote', placeholder: 'Ej. M41-L26 (opcional)', attrs: 'list="dl-lotes" autocomplete="off"' })}
       ${select({ label: 'Recibe (persona)', name: 'recibe', options: ['', ...VENDEDORES] })}
@@ -33,15 +44,37 @@ export function render(container) {
       ${field({ label: 'Concepto', name: 'concepto', placeholder: 'Ej. Comisión M41-L26', attrs: 'required' })}
       <div class="sm:col-span-2 lg:col-span-4">
         ${field({ label: 'Beneficiario (cliente / nombre completo)', name: 'beneficiario', attrs: 'list="dl-clientes" autocomplete="off"' })}
-      </div>
+      </div>`;
+
+    const camposDev = `
+      <div id="lote-estado" class="hidden sm:col-span-2 lg:col-span-4 text-sm rounded-lg px-3 py-2"></div>
+      ${field({ label: 'Fecha', name: 'fecha', type: 'date', value: todayISO(), attrs: 'required' })}
+      ${select({ label: 'Etapa', name: 'etapa', options: ZONAS })}
+      ${field({ label: 'Lote a cancelar', name: 'lote', placeholder: 'Ej. M39-L25', attrs: 'list="dl-lotes" autocomplete="off" required' })}
+      ${field({ label: 'Cliente (a quien se devuelve)', name: 'beneficiario', placeholder: 'Nombre completo', attrs: 'list="dl-clientes" autocomplete="off" required' })}
+      ${field({ label: 'Monto a devolver', name: 'monto', type: 'number', attrs: 'step="0.01" min="0" required' })}
+      ${select({ label: 'Tipo (método)', name: 'metodo', options: METODOS_GASTO })}
+      <div class="sm:col-span-2 lg:col-span-4">
+        ${field({ label: 'Motivo / concepto', name: 'concepto', placeholder: 'Ej. Cancelación por desistimiento del cliente' })}
+      </div>`;
+
+    const tip = esDev
+      ? 'La Devolución CANCELA la venta del lote: lo regresa a Disponible en la Base Maestra y registra el reembolso como gasto. Los pagos previos del cliente se conservan en el flujo (el dinero sí entró).'
+      : 'Al elegir un Lote de la Base Maestra se autocompletan su vendedor (Recibe) y el cliente (Beneficiario).';
+
+    return card(`
+    ${cardTitle(editId ? 'pencil' : (esDev ? 'refresh' : 'plus'), titulo, esDev ? 'bg-amber-500' : 'bg-red-500')}
+    ${modoTabs()}
+    <form id="gas-form" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      ${esDev ? camposDev : camposGasto}
       <div class="sm:col-span-2 lg:col-span-4 flex gap-2">
-        ${btn(editId ? 'Guardar cambios' : 'Registrar gasto', 'type="submit"')}
+        ${btn(editId ? 'Guardar cambios' : (esDev ? 'Registrar devolución' : 'Registrar gasto'), 'type="submit"')}
         ${editId ? btnGhost('Cancelar', 'type="button" id="gas-cancel"') : ''}
       </div>
       <datalist id="dl-clientes">${cat.nombres.map((n) => `<option value="${esc(n)}"></option>`).join('')}</datalist>
       <datalist id="dl-lotes">${cat.lotesAll.map((n) => `<option value="${esc(n)}"></option>`).join('')}</datalist>
     </form>
-    <p class="flex items-start gap-1.5 text-xs text-gray-400 mt-2">${svgIcon('bulb', 'w-4 h-4 shrink-0 text-amber-400')}<span>Al elegir un Lote de la Base Maestra se autocompletan su vendedor (Recibe) y el cliente (Beneficiario).</span></p>
+    <p class="flex items-start gap-1.5 text-xs text-gray-400 mt-2">${svgIcon('bulb', 'w-4 h-4 shrink-0 text-amber-400')}<span>${tip}</span></p>
   `); };
 
   const tableCard = () => {
@@ -108,53 +141,124 @@ export function render(container) {
 
   function wire() {
     const form = container.querySelector('#gas-form');
+    const els = form.elements;
+    const setVal = (name, val) => { if (els[name]) els[name].value = val; };
 
     if (editId) {
       const item = gastos.all().find((x) => x.id === editId);
       if (item) {
-        form.fecha.value = item.fecha;
-        form.etapa.value = item.etapa || ETAPAS_GASTO[0];
-        form.categoria.value = item.categoria;
-        form.monto.value = item.monto;
-        form.lote.value = item.lote || '';
-        form.recibe.value = item.recibe || '';
-        form.metodo.value = item.metodo;
-        form.concepto.value = item.concepto;
-        form.beneficiario.value = item.beneficiario || '';
+        setVal('fecha', item.fecha);
+        setVal('etapa', item.etapa || ETAPAS_GASTO[0]);
+        setVal('categoria', item.categoria);
+        setVal('monto', item.monto);
+        setVal('lote', item.lote || '');
+        setVal('recibe', item.recibe || '');
+        setVal('metodo', item.metodo);
+        setVal('concepto', item.concepto);
+        setVal('beneficiario', item.beneficiario || '');
       }
     }
 
-    // Autocompletado desde la Base Maestra:
-    //  • al elegir un LOTE → rellena vendedor (Recibe) y cliente (Beneficiario);
-    //  • al elegir un CLIENTE (Beneficiario) → rellena vendedor y lote (si es único).
-    form.lote.addEventListener('change', () => {
-      const r = catalogoCaptura().porLote.get(keyOf(form.lote.value));
+    // Banner de estado del lote (solo modo Devolución).
+    const estadoEl = container.querySelector('#lote-estado');
+    const setEstado = (tipo, icon, html) => {
+      if (!estadoEl) return;
+      const styles = {
+        ok:   'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
+        warn: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
+        info: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
+      };
+      estadoEl.className = `sm:col-span-2 lg:col-span-4 text-sm rounded-lg px-3 py-2 flex items-center gap-2 ${styles[tipo]}`;
+      estadoEl.innerHTML = `${svgIcon(icon, 'w-4 h-4 shrink-0')}<span>${html}</span>`;
+    };
+
+    // Cambio de Lote:
+    //  • Gasto      → autocompleta Recibe (vendedor) y Beneficiario (cliente).
+    //  • Devolución → muestra cuánto ha pagado el cliente, saldo y comisión, e
+    //    indica si el lote realmente está vendido (solo así se puede cancelar).
+    els.lote?.addEventListener('change', () => {
+      if (modo === 'devolucion') {
+        const clave = els.lote.value.trim();
+        if (!clave) { estadoEl?.classList.add('hidden'); return; }
+        const info = infoLoteVenta(clave);
+        if (!info.vendido) {
+          setEstado('warn', 'alertTriangle', `El lote <strong>${esc(clave)}</strong> no está vendido; no hay operación que cancelar.`);
+          return;
+        }
+        if (els.beneficiario && !els.beneficiario.value.trim()) els.beneficiario.value = info.cliente;
+        // La devolución se contabiliza en la etapa (zona) del lote, para que sí
+        // aparezca en el recuadro DEVOLUCIONES del dashboard (no en "General").
+        if (info.etapa && els.etapa && ZONAS.includes(info.etapa)) els.etapa.value = info.etapa;
+        let html = `Cliente <strong>${esc(info.cliente || '—')}</strong> · pagado <strong>${money(info.pagado)}</strong>`;
+        if (info.saldo) html += ` · saldo ${money(info.saldo)}`;
+        if (info.comision) html += ` · ⚠ comisión pagada <strong>${money(info.comision)}</strong>`;
+        setEstado('info', 'cash', html);
+        return;
+      }
+      const r = catalogoCaptura().porLote.get(keyOf(els.lote.value));
       if (!r) return;
-      if (r.vendedor && !form.recibe.value) form.recibe.value = r.vendedor;
-      if (r.cliente && !form.beneficiario.value.trim()) form.beneficiario.value = r.cliente;
+      if (r.vendedor && els.recibe && !els.recibe.value) els.recibe.value = r.vendedor;
+      if (r.cliente && els.beneficiario && !els.beneficiario.value.trim()) els.beneficiario.value = r.cliente;
     });
-    form.beneficiario.addEventListener('change', () => {
-      const r = catalogoCaptura().porCliente.get(keyOf(form.beneficiario.value));
+
+    // En modo Gasto, al elegir un CLIENTE (Beneficiario) → rellena vendedor y lote.
+    els.beneficiario?.addEventListener('change', () => {
+      if (modo !== 'gasto') return;
+      const r = catalogoCaptura().porCliente.get(keyOf(els.beneficiario.value));
       if (!r) return;
-      if (r.vendedor && !form.recibe.value) form.recibe.value = r.vendedor;
+      if (r.vendedor && !els.recibe.value) els.recibe.value = r.vendedor;
       const ls = [...r.lotes];
-      if (ls.length === 1 && !form.lote.value.trim()) form.lote.value = ls[0];
+      if (ls.length === 1 && !els.lote.value.trim()) els.lote.value = ls[0];
     });
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
+      const lote = els.lote.value.trim();
+      const monto = toNum(els.monto.value);
+
+      if (modo === 'devolucion') {
+        const beneficiario = els.beneficiario.value.trim();
+        const concepto = (els.concepto.value || '').trim() || `Devolución · ${lote}`;
+        if (!lote || !beneficiario) { toast('Devolución: lote y cliente son obligatorios', 'error'); return; }
+        if (monto <= 0) { toast('Captura el monto a devolver', 'error'); return; }
+        if (!editId) {
+          const info = infoLoteVenta(lote);
+          if (!info.vendido && !confirmAction(`El lote ${lote} no aparece como vendido. ¿Registrar la devolución de todos modos?`)) return;
+          if (!confirmAction(`Vas a CANCELAR la venta del lote ${lote} y devolver ${money(monto)} a ${beneficiario}. El lote volverá a Disponible. ¿Continuar?`)) return;
+        }
+        const data = {
+          fecha: els.fecha.value, etapa: els.etapa.value, categoria: 'Devolución',
+          monto, lote, recibe: 'Cliente', metodo: els.metodo.value,
+          concepto, beneficiario, descripcion: concepto,
+        };
+        try {
+          if (editId) {
+            await gastos.update(editId, data);
+            toast('Devolución actualizada', 'success');
+            editId = null;
+          } else {
+            const item = await gastos.create(data);
+            toast(`Devolución registrada · Folio ${item?.folio ?? '—'}`, 'success');
+            if (item) imprimirComprobante('gasto', item);
+            const r = await cancelarVentaLote(lote);
+            if (r?.action === 'liberado') toast(`Lote ${r.numero} liberado (Disponible)`, 'success');
+          }
+        } catch (err) { toast('Error: ' + err.message, 'error'); }
+        return;
+      }
+
+      // ---- Modo Gasto normal ----
       const data = {
-        fecha: form.fecha.value,
-        etapa: form.etapa.value,
-        categoria: form.categoria.value,
-        monto: toNum(form.monto.value),
-        lote: form.lote.value.trim(),
-        recibe: form.recibe.value,
-        metodo: form.metodo.value,
-        concepto: form.concepto.value.trim(),
-        beneficiario: form.beneficiario.value.trim(),
-        // alias para vistas que usan "descripcion"
-        descripcion: form.concepto.value.trim(),
+        fecha: els.fecha.value,
+        etapa: els.etapa.value,
+        categoria: els.categoria.value,
+        monto,
+        lote,
+        recibe: els.recibe.value,
+        metodo: els.metodo.value,
+        concepto: els.concepto.value.trim(),
+        beneficiario: els.beneficiario.value.trim(),
+        descripcion: els.concepto.value.trim(),
       };
       if (!data.concepto || data.monto <= 0) {
         toast('Concepto y cantidad válida son obligatorios', 'error');
@@ -173,6 +277,9 @@ export function render(container) {
       } catch (err) { toast('Error: ' + err.message, 'error'); }
     });
 
+    container.querySelectorAll('[data-modo]').forEach((b) =>
+      b.addEventListener('click', () => { if (modo === b.dataset.modo && !editId) return; modo = b.dataset.modo; editId = null; draw(); }));
+
     container.querySelector('#gas-cancel')?.addEventListener('click', () => { editId = null; draw(); });
 
     container.querySelectorAll('[data-print]').forEach((b) =>
@@ -182,7 +289,13 @@ export function render(container) {
       }));
 
     container.querySelectorAll('[data-edit]').forEach((b) =>
-      b.addEventListener('click', () => { editId = b.dataset.edit; draw(); window.scrollTo({ top: 0, behavior: 'smooth' }); }));
+      b.addEventListener('click', () => {
+        editId = b.dataset.edit;
+        const it = gastos.all().find((x) => x.id === editId);
+        modo = it && /devoluc/i.test(it.categoria || '') ? 'devolucion' : 'gasto';
+        draw();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }));
 
     container.querySelectorAll('[data-del]').forEach((b) =>
       b.addEventListener('click', () => {
