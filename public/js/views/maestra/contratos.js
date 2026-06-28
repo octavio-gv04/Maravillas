@@ -90,7 +90,7 @@ export function render(container) {
       e.preventDefault();
       const f = e.target;
       const data = {
-        cliente: f.cliente.value.trim(), lote: f.lote.value.trim().toUpperCase(), fechaFirma: f.fechaFirma.value,
+        cliente: f.cliente.value.trim(), lote: f.lote.value.trim().toUpperCase().replace(/\s+/g, ''), fechaFirma: f.fechaFirma.value,
         precio: f.precio.value, enganche: f.enganche.value, plazo: f.plazo.value,
         mensualidad: f.mensualidad.value, estado: f.estado.value, etapa: editing.etapa || etapaActiva(),
       };

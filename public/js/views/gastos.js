@@ -234,7 +234,7 @@ export function render(container) {
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const lote = els.lote.value.trim().toUpperCase();
+      const lote = els.lote.value.trim().toUpperCase().replace(/\s+/g, '');
       const monto = toNum(els.monto.value);
 
       if (modo === 'devolucion') {
