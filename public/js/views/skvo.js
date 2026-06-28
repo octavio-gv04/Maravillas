@@ -95,7 +95,7 @@ export function render(container) {
       .sort((a, b) => (b.fecha + (b.creado || '')).localeCompare(a.fecha + (a.creado || '')));
     const total = list.reduce((a, x) => a + toNum(x.monto), 0);
     return card(`
-      ${sectionHead(`Gastos SKVO de ${esc(mes)} (${list.length})`)}
+      ${sectionHead(`Gastos SKVO de ${esc(mes)} (${list.length}) · ${money(total)}`)}
       ${list.length ? `
       <div class="table-wrap"><table class="w-full text-sm">
         <thead class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-700">
@@ -130,7 +130,7 @@ export function render(container) {
       .sort((a, b) => (b.fecha + (b.creado || '')).localeCompare(a.fecha + (a.creado || '')));
     const total = list.reduce((a, x) => a + toNum(x.monto), 0);
     return card(`
-      ${sectionHead(`Ingresos SKVO de ${esc(mes)} (${list.length})`)}
+      ${sectionHead(`Ingresos SKVO de ${esc(mes)} (${list.length}) · ${money(total)}`)}
       ${list.length ? `
       <div class="table-wrap"><table class="w-full text-sm">
         <thead class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-700">

@@ -102,7 +102,7 @@ export function render(container) {
       `<button data-etapa="${esc(e)}" class="px-3 py-1 rounded-full text-xs border ${e === fEtapa ? 'bg-brand text-white border-brand' : 'border-gray-300 dark:border-gray-600'}">${esc(e)}</button>`).join('');
 
     return card(`
-      ${sectionHead(`Gastos (${list.length})`,
+      ${sectionHead(`Gastos (${list.length}) · ${money(total)}`,
         `<input id="gas-search" class="field !w-56" placeholder="Buscar..." value="${esc(query)}" />`, 'trendingDown', 'bg-red-500')}
       <div class="flex items-center gap-3 mb-3 flex-wrap">
         ${monthNav(mes)}
