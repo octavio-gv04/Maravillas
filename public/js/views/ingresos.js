@@ -98,6 +98,9 @@ export function render(container) {
           .some((f) => String(f || '').toLowerCase().includes(q)));
     }
     const total = list.reduce((a, x) => a + toNum(x.monto), 0);
+    const LIMIT = 150;
+    const shown = list.slice(0, LIMIT);
+    const hayMas = list.length > LIMIT;
 
     const etapaTabs = ['Todas', ...ETAPAS_INGRESO].map((e) =>
       `<button data-etapa="${esc(e)}" class="px-3 py-1 rounded-full text-xs border ${e === fEtapa ? 'bg-brand text-white border-brand' : 'border-gray-300 dark:border-gray-600'}">${esc(e)}</button>`).join('');
@@ -116,7 +119,7 @@ export function render(container) {
             </tr>
           </thead>
           <tbody>
-            ${list.map((x) => `
+            ${shown.map((x) => `
               <tr class="border-b border-gray-100 dark:border-gray-700/50">
                 <td class="py-2">${x.folio ?? '—'}</td>
                 <td class="whitespace-nowrap">${prettyDate(x.fecha)}</td>
@@ -141,17 +144,23 @@ export function render(container) {
             </tr>
           </tfoot>
         </table>
-      </div>` : empty('No hay ingresos que coincidan')}
+      </div>
+      ${hayMas ? `<p class="text-xs text-gray-400 mt-2">Mostrando ${LIMIT} de ${list.length}. Usa el buscador para encontrar registros específicos.</p>` : ''}` : empty('No hay ingresos que coincidan')}
     `);
   };
 
   const draw = () => {
-    container.innerHTML = `<div class="space-y-4">${formCard()}${tableCard()}</div>`;
-    wire();
+    container.innerHTML = `<div class="space-y-4"><div id="ing-form-host">${formCard()}</div><div id="ing-table-host">${tableCard()}</div></div>`;
+    wireForm(); wireTable();
   };
+  // Re-render dirigido: cambiar de modo o editar solo toca el formulario; buscar/
+  // filtrar solo la tabla. Evita re-renderizar miles de filas en cada clic.
+  const redrawForm = () => { const h = container.querySelector('#ing-form-host'); if (h) { h.innerHTML = formCard(); wireForm(); } };
+  const redrawTable = () => { const h = container.querySelector('#ing-table-host'); if (h) { h.innerHTML = tableCard(); wireTable(); } };
 
-  function wire() {
+  function wireForm() {
     const form = container.querySelector('#ing-form');
+    if (!form) return;
     const els = form.elements;
     const setVal = (name, val) => { if (els[name]) els[name].value = val; };
     const fillEmpty = (name, val) => { if (els[name] && !String(els[name].value).trim()) els[name].value = val ?? ''; };
@@ -297,10 +306,12 @@ export function render(container) {
     });
 
     container.querySelectorAll('[data-modo]').forEach((b) =>
-      b.addEventListener('click', () => { if (modo === b.dataset.modo && !editId) return; modo = b.dataset.modo; editId = null; draw(); }));
+      b.addEventListener('click', () => { if (modo === b.dataset.modo && !editId) return; modo = b.dataset.modo; editId = null; redrawForm(); }));
 
-    container.querySelector('#ing-cancel')?.addEventListener('click', () => { editId = null; draw(); });
+    container.querySelector('#ing-cancel')?.addEventListener('click', () => { editId = null; redrawForm(); });
+  }
 
+  function wireTable() {
     container.querySelectorAll('[data-print]').forEach((b) =>
       b.addEventListener('click', () => {
         const item = ingresos.all().find((x) => x.id === b.dataset.print);
@@ -312,7 +323,7 @@ export function render(container) {
         editId = b.dataset.edit;
         const it = ingresos.all().find((x) => x.id === editId);
         modo = it && CAT_VENTA_FORM.some((c) => c.toLowerCase() === String(it.categoria).trim().toLowerCase()) ? 'venta' : 'pago';
-        draw();
+        redrawForm();
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }));
 
@@ -325,13 +336,13 @@ export function render(container) {
       }));
 
     container.querySelectorAll('[data-etapa]').forEach((b) =>
-      b.addEventListener('click', () => { fEtapa = b.dataset.etapa; draw(); }));
+      b.addEventListener('click', () => { fEtapa = b.dataset.etapa; redrawTable(); }));
 
     const search = container.querySelector('#ing-search');
     if (search) {
       search.addEventListener('input', () => {
         query = search.value;
-        draw();
+        redrawTable();
         const s = container.querySelector('#ing-search');
         s.focus(); s.setSelectionRange(s.value.length, s.value.length);
       });

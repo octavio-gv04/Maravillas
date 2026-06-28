@@ -87,6 +87,9 @@ export function render(container) {
           .some((f) => String(f || '').toLowerCase().includes(q)));
     }
     const total = list.reduce((a, x) => a + toNum(x.monto), 0);
+    const LIMIT = 150;
+    const shown = list.slice(0, LIMIT);
+    const hayMas = list.length > LIMIT;
 
     const etapaTabs = ['Todas', ...ETAPAS_GASTO].map((e) =>
       `<button data-etapa="${esc(e)}" class="px-3 py-1 rounded-full text-xs border ${e === fEtapa ? 'bg-brand text-white border-brand' : 'border-gray-300 dark:border-gray-600'}">${esc(e)}</button>`).join('');
@@ -105,7 +108,7 @@ export function render(container) {
             </tr>
           </thead>
           <tbody>
-            ${list.map((x) => `
+            ${shown.map((x) => `
               <tr class="border-b border-gray-100 dark:border-gray-700/50">
                 <td class="py-2">${x.folio ?? '—'}</td>
                 <td class="whitespace-nowrap">${prettyDate(x.fecha)}</td>
@@ -130,17 +133,21 @@ export function render(container) {
             </tr>
           </tfoot>
         </table>
-      </div>` : empty('No hay gastos que coincidan')}
+      </div>
+      ${hayMas ? `<p class="text-xs text-gray-400 mt-2">Mostrando ${LIMIT} de ${list.length}. Usa el buscador para encontrar registros específicos.</p>` : ''}` : empty('No hay gastos que coincidan')}
     `);
   };
 
   const draw = () => {
-    container.innerHTML = `<div class="space-y-4">${formCard()}${tableCard()}</div>`;
-    wire();
+    container.innerHTML = `<div class="space-y-4"><div id="gas-form-host">${formCard()}</div><div id="gas-table-host">${tableCard()}</div></div>`;
+    wireForm(); wireTable();
   };
+  const redrawForm = () => { const h = container.querySelector('#gas-form-host'); if (h) { h.innerHTML = formCard(); wireForm(); } };
+  const redrawTable = () => { const h = container.querySelector('#gas-table-host'); if (h) { h.innerHTML = tableCard(); wireTable(); } };
 
-  function wire() {
+  function wireForm() {
     const form = container.querySelector('#gas-form');
+    if (!form) return;
     const els = form.elements;
     const setVal = (name, val) => { if (els[name]) els[name].value = val; };
 
@@ -278,10 +285,12 @@ export function render(container) {
     });
 
     container.querySelectorAll('[data-modo]').forEach((b) =>
-      b.addEventListener('click', () => { if (modo === b.dataset.modo && !editId) return; modo = b.dataset.modo; editId = null; draw(); }));
+      b.addEventListener('click', () => { if (modo === b.dataset.modo && !editId) return; modo = b.dataset.modo; editId = null; redrawForm(); }));
 
-    container.querySelector('#gas-cancel')?.addEventListener('click', () => { editId = null; draw(); });
+    container.querySelector('#gas-cancel')?.addEventListener('click', () => { editId = null; redrawForm(); });
+  }
 
+  function wireTable() {
     container.querySelectorAll('[data-print]').forEach((b) =>
       b.addEventListener('click', () => {
         const item = gastos.all().find((x) => x.id === b.dataset.print);
@@ -293,7 +302,7 @@ export function render(container) {
         editId = b.dataset.edit;
         const it = gastos.all().find((x) => x.id === editId);
         modo = it && /devoluc/i.test(it.categoria || '') ? 'devolucion' : 'gasto';
-        draw();
+        redrawForm();
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }));
 
@@ -306,13 +315,13 @@ export function render(container) {
       }));
 
     container.querySelectorAll('[data-etapa]').forEach((b) =>
-      b.addEventListener('click', () => { fEtapa = b.dataset.etapa; draw(); }));
+      b.addEventListener('click', () => { fEtapa = b.dataset.etapa; redrawTable(); }));
 
     const search = container.querySelector('#gas-search');
     if (search) {
       search.addEventListener('input', () => {
         query = search.value;
-        draw();
+        redrawTable();
         const s = container.querySelector('#gas-search');
         s.focus(); s.setSelectionRange(s.value.length, s.value.length);
       });
