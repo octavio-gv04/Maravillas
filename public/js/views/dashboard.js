@@ -59,7 +59,7 @@ export function render(container) {
         <div class="flex items-center gap-2 flex-wrap">${tabBar}</div>
         <div class="flex items-center gap-2 text-sm">
           <label class="text-gray-500">Día:</label>
-          <input id="dash-date" type="date" class="field !w-44" value="${fecha}" />
+          <input id="dash-date" type="date" lang="es-MX" class="field !w-44" value="${fecha}" />
           <button id="dash-hoy" class="border border-gray-300 dark:border-gray-600 px-3 py-1.5 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition">Hoy</button>
         </div>
       </div>

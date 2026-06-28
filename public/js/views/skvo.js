@@ -18,6 +18,7 @@ import { money, prettyDate, todayISO, esc, toNum, toast, confirmAction } from '.
 import { card, btn, btnGhost, field, select, sectionHead, empty, cardTitle, actionBtn } from '../ui.js';
 import { svgIcon } from '../icons.js';
 import { can } from '../auth.js';
+import { imprimirComprobante } from '../recibo.js';
 
 export function render(container) {
   let sub = 'gastos';   // 'gastos' | 'ingresos'
@@ -111,6 +112,7 @@ export function render(container) {
             <td>${esc(x.metodo)}</td>
             <td class="text-right font-medium text-red-600">${money(x.monto)}</td>
             <td class="text-right whitespace-nowrap">
+              ${actionBtn('printer', `data-print="${x.id}"`, 'hover:text-brand', 'Imprimir comprobante')}
               ${actionBtn('pencil', `data-edit="${x.id}"`, 'hover:text-brand', 'Editar')}
               ${can('eliminar') ? actionBtn('trash', `data-del="${x.id}"`, 'hover:text-red-600', 'Eliminar') : ''}
             </td></tr>`).join('')}
@@ -145,6 +147,7 @@ export function render(container) {
             <td>${esc(x.metodo)}</td>
             <td class="text-right font-medium text-green-600">${money(x.monto)}</td>
             <td class="text-right whitespace-nowrap">
+              ${actionBtn('printer', `data-print="${x.id}"`, 'hover:text-brand', 'Imprimir recibo')}
               ${actionBtn('pencil', `data-edit="${x.id}"`, 'hover:text-brand', 'Editar')}
               ${can('eliminar') ? actionBtn('trash', `data-del="${x.id}"`, 'hover:text-red-600', 'Eliminar') : ''}
             </td></tr>`).join('')}
@@ -204,11 +207,18 @@ export function render(container) {
         } else {
           const item = await col().create(data);
           toast(`Registro SKVO guardado · Folio ${item?.folio ?? '—'}`, 'success');
+          // Abre el recibo/comprobante para imprimir (mismo formato que Ingresos/Gastos).
+          if (item) imprimirComprobante(sub === 'gastos' ? 'skvo-gasto' : 'skvo-ingreso', item);
         }
       } catch (err) { toast('Error: ' + err.message, 'error'); }
     });
 
     container.querySelector('#skvo-cancel')?.addEventListener('click', () => { editId = null; draw(); });
+    container.querySelectorAll('[data-print]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const item = col().all().find((x) => x.id === b.dataset.print);
+        if (item) imprimirComprobante(sub === 'gastos' ? 'skvo-gasto' : 'skvo-ingreso', item);
+      }));
     container.querySelectorAll('[data-edit]').forEach((b) =>
       b.addEventListener('click', () => { editId = b.dataset.edit; draw(); window.scrollTo({ top: 0, behavior: 'smooth' }); }));
     container.querySelectorAll('[data-del]').forEach((b) =>

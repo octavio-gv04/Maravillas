@@ -28,8 +28,8 @@ export function render(container) {
     container.innerHTML = `
       <div class="flex items-center gap-2 mb-3 flex-wrap">${etapaTabs}</div>
       <div class="flex items-center gap-3 mb-4 flex-wrap text-sm">
-        <label class="text-gray-500">Desde</label><input id="f-desde" type="date" class="field !w-40" value="${desde}" />
-        <label class="text-gray-500">Hasta</label><input id="f-hasta" type="date" class="field !w-40" value="${hasta}" />
+        <label class="text-gray-500">Desde</label><input id="f-desde" type="date" lang="es-MX" class="field !w-40" value="${desde}" />
+        <label class="text-gray-500">Hasta</label><input id="f-hasta" type="date" lang="es-MX" class="field !w-40" value="${hasta}" />
         <button id="f-clear" class="text-brand underline">Todo el periodo</button>
       </div>
 

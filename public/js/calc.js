@@ -9,13 +9,17 @@ import { toNum } from './utils.js';
 import {
   FLUJO_GRUPOS_INGRESO, VENDEDORES, FLUJO_ETAPAS, RESUMEN_CONCEPTOS,
   FLUJO_COMISION_CATS, FLUJO_GENERALES, FLUJO_ASIGNADOS, FLUJO_ETAPAS_COMPARTIDAS,
-  SKVO_ETAPA_DEFAULT,
+  SKVO_ETAPA_DEFAULT, CAT_VENTA_LOTE,
 } from './config.js';
 
 const sum = (list) => list.reduce((acc, x) => acc + toNum(x.monto), 0);
 
-// Comparacion de texto insensible a mayusculas/espacios (como SUMIFS/COUNTIFS de Excel).
-const ci = (a, b) => String(a ?? '').trim().toLowerCase() === String(b ?? '').trim().toLowerCase();
+// Comparacion de texto insensible a mayusculas/espacios Y ACENTOS (como SUMIFS/
+// COUNTIFS de Excel). La insensibilidad a acentos evita desajustes por datos en
+// español capturados sin tilde (p. ej. "San Jose" vs "San José", "Monica" vs
+// "Mónica"), comunes al reimportar desde Excel.
+const norm = (s) => String(s ?? '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const ci = (a, b) => norm(a) === norm(b);
 
 /** Filtra una lista por etapa (o todas si etapa es falsy/"Todas") y rango de fechas. */
 function filtrar(list, { etapa, desde, hasta } = {}) {
@@ -240,7 +244,12 @@ export function serieMesPorDia(mes, etapasList) {
  */
 export function resumenMes(mes, etapasList) {
   const periodo = rangoMes(mes);
-  let ingr = 0, egresos = 0, utilidad = 0, vendidos = 0, abonos = 0, devoluciones = 0;
+  let ingr = 0, egresos = 0, utilidad = 0, abonos = 0, devoluciones = 0;
+  // VENDIDOS = lotes vendidos en el mes (categorías CAT_VENTA_LOTE: Enganche,
+  // Promo 1er Mes, Contado), sin importar si tienen vendedor asignado. Las
+  // parcialidades posteriores (Enganche Parcial, Promo 2do/3er Mes) NO cuentan.
+  // Se cuentan lotes DISTINTOS para no duplicar.
+  const vendidosSet = new Set();
   const conceptos = RESUMEN_CONCEPTOS.map((c) => ({ label: c.label, monto: 0 }));
 
   for (const etapa of etapasList) {
@@ -248,12 +257,13 @@ export function resumenMes(mes, etapasList) {
     ingr += f.ingresos.total;
     egresos += f.totalEgresos;
     utilidad += f.utilidad;
-    vendidos += f.comisiones.reduce((a, c) => a + c.lotes, 0);
 
     const insM = filtrar(ingresos.all(), { etapa, desde: periodo.desde, hasta: periodo.hasta });
     const gasM = filtrar(gastos.all(), { etapa, desde: periodo.desde, hasta: periodo.hasta });
     abonos += insM.filter((x) => ci(x.categoria, 'Abono')).length;
     devoluciones += gasM.filter((x) => ci(x.categoria, 'Devolución')).length;
+    insM.filter((x) => CAT_VENTA_LOTE.some((c) => ci(c, x.categoria)))
+      .forEach((x) => vendidosSet.add((x.lote || '').trim().toLowerCase() || x.id));
     RESUMEN_CONCEPTOS.forEach((c, i) => {
       conceptos[i].monto += sum(insM.filter((x) => c.cats.some((cat) => ci(cat, x.categoria))));
     });
@@ -262,7 +272,7 @@ export function resumenMes(mes, etapasList) {
   return {
     mes, conceptos,
     ingresos: ingr, egresos, utilidad,
-    abonos, devoluciones, vendidos,
+    abonos, devoluciones, vendidos: vendidosSet.size,
   };
 }
 

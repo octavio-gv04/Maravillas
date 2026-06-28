@@ -23,20 +23,22 @@ export function kpi({ label, value, icon, accent = 'text-gray-900 dark:text-whit
     </div>`);
 }
 
-/** Boton primario. */
+/** Boton primario. Misma altura (2.5rem) que inputs/selects (.field). */
 export const btn = (label, attrs = '') =>
-  `<button class="bg-brand hover:bg-brand-dark text-white px-4 py-2 rounded-lg text-sm font-medium transition" ${attrs}>${label}</button>`;
+  `<button class="bg-brand hover:bg-brand-dark text-white inline-flex items-center justify-center min-h-[2.5rem] px-4 rounded-lg text-sm font-medium transition" ${attrs}>${label}</button>`;
 
-/** Boton secundario / neutro. */
+/** Boton secundario / neutro. Misma altura (2.5rem) que inputs/selects (.field). */
 export const btnGhost = (label, attrs = '') =>
-  `<button class="border border-gray-300 dark:border-gray-600 px-3 py-2 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition" ${attrs}>${label}</button>`;
+  `<button class="border border-gray-300 dark:border-gray-600 inline-flex items-center justify-center min-h-[2.5rem] px-3 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition" ${attrs}>${label}</button>`;
 
 /** Campo de texto/numero/fecha con etiqueta. */
 export function field({ label, name, type = 'text', value = '', attrs = '', placeholder = '' }) {
+  // En inputs nativos de fecha forzamos locale mexicano (dd/mm/aaaa) en Safari/Chrome.
+  const lang = (type === 'date' || type === 'month') ? 'lang="es-MX"' : '';
   return `
     <label class="block">
       <span class="text-xs font-medium text-gray-600 dark:text-gray-300">${esc(label)}</span>
-      <input class="field mt-1" type="${type}" name="${name}" value="${esc(value)}"
+      <input class="field mt-1" type="${type}" name="${name}" value="${esc(value)}" ${lang}
              placeholder="${esc(placeholder)}" ${attrs} />
     </label>`;
 }

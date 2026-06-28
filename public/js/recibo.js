@@ -72,6 +72,33 @@ function datos(tipo, item) {
       autorizo: item.recibe || '—',
     };
   }
+  // SKVO (maquinaria): mismo formato. Ingreso = recibo de pago; Gasto = egreso.
+  if (tipo === 'skvo-gasto') {
+    return {
+      titulo: 'Comprobante SKVO',
+      folio: 'SKG-' + (item.folio ?? '—'),
+      fecha: item.fecha, lote: item.lote || '—',
+      concepto: item.categoria || '—',
+      detalle: item.concepto || '',
+      pago: item.metodo || '—',
+      nombre: item.entrego || '—',
+      monto: item.monto, etapa: item.etapa || '',
+      autorizo: item.entrego || '—',
+    };
+  }
+  if (tipo === 'skvo-ingreso') {
+    return {
+      titulo: 'Recibo SKVO',
+      folio: 'SKI-' + (item.folio ?? '—'),
+      fecha: item.fecha, lote: item.lote || '—',
+      concepto: item.categoria || '—',
+      detalle: '',
+      pago: item.metodo || '—',
+      nombre: item.cliente || '—',
+      monto: item.monto, etapa: item.etapa || '',
+      autorizo: item.captura || '—',
+    };
+  }
   return {
     titulo: 'Recibo de Pago',
     folio: item.recibo || ('R-' + (item.folio ?? '—')),
@@ -113,7 +140,7 @@ function mitad(d, rol) {
 
 export function comprobanteHTML(tipo, item, opts = {}) {
   const d = datos(tipo, item);
-  return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Recibo ${esc(d.folio)}</title>
+  return `<!DOCTYPE html><html lang="es-MX"><head><meta charset="UTF-8"><title>Recibo ${esc(d.folio)}</title>
   <style>
     /* Impresión en hoja CARTA, orientación horizontal (landscape). */
     @page { size: letter landscape; margin: 0; }
@@ -161,8 +188,8 @@ export function comprobanteHTML(tipo, item, opts = {}) {
 
 /**
  * Abre una ventana con el comprobante y lanza la impresión.
- * @param {'ingreso'|'gasto'} tipo
- * @param {object} item registro (ingreso o gasto)
+ * @param {'ingreso'|'gasto'|'skvo-ingreso'|'skvo-gasto'} tipo
+ * @param {object} item registro (ingreso, gasto o registro SKVO)
  */
 export function imprimirComprobante(tipo, item) {
   const w = window.open('', '_blank', 'width=900,height=420');

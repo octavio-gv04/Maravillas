@@ -8,6 +8,7 @@ import { ingresos, subscribe } from '../store.js';
 import { CAT_INGRESOS, METODOS_INGRESO, ETAPAS_INGRESO, VENDEDORES } from '../config.js';
 import { money, prettyDate, todayISO, esc, toNum, toast, confirmAction } from '../utils.js';
 import { card, btn, btnGhost, field, select, textarea, sectionHead, empty, badge, cardTitle, actionBtn } from '../ui.js';
+import { svgIcon } from '../icons.js';
 import { can } from '../auth.js';
 import { catalogoCaptura, keyOf } from '../maestra.js';
 import { imprimirComprobante } from '../recibo.js';
@@ -44,7 +45,7 @@ export function render(container) {
       <datalist id="dl-clientes">${cat.nombres.map((n) => `<option value="${esc(n)}"></option>`).join('')}</datalist>
       <datalist id="dl-lotes">${cat.lotesAll.map((n) => `<option value="${esc(n)}"></option>`).join('')}</datalist>
     </form>
-    <p class="text-xs text-gray-400 mt-2">💡 El campo Cliente sugiere los ${cat.nombres.length} clientes de la Base de Datos Maestra. Al elegir uno, se autocompletan su lote y vendedor.</p>
+    <p class="flex items-start gap-1.5 text-xs text-gray-400 mt-2">${svgIcon('bulb', 'w-4 h-4 shrink-0 text-amber-400')}<span>El campo Cliente sugiere los ${cat.nombres.length} clientes de la Base de Datos Maestra. Al elegir uno, se autocompletan su lote y vendedor.</span></p>
   `); };
 
   const tableCard = () => {

@@ -65,9 +65,9 @@ export function render(container) {
         ${select({ label: 'Tipo de reporte', name: 'tipo', options: TIPOS, value: tipo })}
         ${d.periodo ? `
           <label class="block"><span class="text-xs font-medium text-gray-600 dark:text-gray-300">Desde</span>
-            <input class="field mt-1" type="date" id="desde" value="${desde}" /></label>
+            <input class="field mt-1" type="date" lang="es-MX" id="desde" value="${desde}" /></label>
           <label class="block"><span class="text-xs font-medium text-gray-600 dark:text-gray-300">Hasta</span>
-            <input class="field mt-1" type="date" id="hasta" value="${hasta}" /></label>` : ''}
+            <input class="field mt-1" type="date" lang="es-MX" id="hasta" value="${hasta}" /></label>` : ''}
         <div class="flex items-end text-sm text-gray-500">${d.rows.length} registros</div>
       </div>
       ${d.rows.length ? card(`

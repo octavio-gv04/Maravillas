@@ -217,6 +217,16 @@ export const CAT_ABONA_LOTE = [
 ];
 export const CAT_ENGANCHE = ['Enganche', 'Enganche Parcial'];
 
+// Categorías que marcan la VENTA de un lote nuevo (cuentan en "VENDIDOS" del
+// dashboard, una sola vez por lote). El registro de la venta ocurre con:
+//  • 'Enganche'      → venta normal (enganche completo / cliente y lote nuevos),
+//  • 'Promo 1er Mes' → venta con enganche diferido en 3 pagos (Promo 2do/3er Mes
+//                      son parcialidades posteriores y NO cuentan),
+//  • 'Contado'       → compra de contado (lote pagado por completo de una vez).
+// 'Enganche Parcial' son abonos previos al enganche completo → NO cuentan aquí
+// (la venta se contabiliza cuando se registra el 'Enganche').
+export const CAT_VENTA_LOTE = ['Enganche', 'Promo 1er Mes', 'Contado'];
+
 /**
  * Fecha de corte del Excel maestro: los pagos del Control Diario con fecha
  * posterior se consideran NUEVOS y actualizan la Maestra (evita doble conteo).

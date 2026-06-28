@@ -8,6 +8,7 @@ import { gastos, subscribe } from '../store.js';
 import { CAT_GASTOS, METODOS_GASTO, ETAPAS_GASTO, VENDEDORES } from '../config.js';
 import { money, prettyDate, todayISO, esc, toNum, toast, confirmAction } from '../utils.js';
 import { card, btn, btnGhost, field, select, sectionHead, empty, cardTitle, actionBtn } from '../ui.js';
+import { svgIcon } from '../icons.js';
 import { can } from '../auth.js';
 import { catalogoCaptura, keyOf } from '../maestra.js';
 import { imprimirComprobante } from '../recibo.js';
@@ -40,7 +41,7 @@ export function render(container) {
       <datalist id="dl-clientes">${cat.nombres.map((n) => `<option value="${esc(n)}"></option>`).join('')}</datalist>
       <datalist id="dl-lotes">${cat.lotesAll.map((n) => `<option value="${esc(n)}"></option>`).join('')}</datalist>
     </form>
-    <p class="text-xs text-gray-400 mt-2">💡 Al elegir un Lote de la Base Maestra se autocompletan su vendedor (Recibe) y el cliente (Beneficiario).</p>
+    <p class="flex items-start gap-1.5 text-xs text-gray-400 mt-2">${svgIcon('bulb', 'w-4 h-4 shrink-0 text-amber-400')}<span>Al elegir un Lote de la Base Maestra se autocompletan su vendedor (Recibe) y el cliente (Beneficiario).</span></p>
   `); };
 
   const tableCard = () => {

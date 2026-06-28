@@ -41,11 +41,15 @@
 .nav-link.active { background:#1d4ed8; color:#fff; }
 
 /* Inputs base reutilizables (las clases las componemos en JS con estas utilidades) */
+/* --control-h: altura uniforme para inputs, selects y botones de formulario. */
+:root { --control-h: 2.5rem; }
 .field {
-  width:100%; padding:.55rem .7rem; border-radius:.6rem;
+  width:100%; height:var(--control-h); padding:.5rem .7rem; border-radius:.6rem;
   border:1px solid rgba(120,120,120,.35); background:transparent; color:inherit;
-  outline:none;
+  outline:none; box-sizing:border-box;
 }
+/* La textarea crece con sus filas; no la forzamos a la altura de un control simple. */
+textarea.field { height:auto; }
 .field:focus { border-color:#1d4ed8; box-shadow:0 0 0 3px rgba(29,78,216,.18); }
 
 /* Oculta el spinner nativo feo en inputs number de algunos navegadores no afecta funcionalidad */
