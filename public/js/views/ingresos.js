@@ -124,7 +124,7 @@ export function render(container) {
         <table class="w-full text-sm">
           <thead class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-700">
             <tr>
-              <th class="py-2">Folio</th><th>Fecha</th><th>Recibo</th><th>Etapa</th><th>Lote</th>
+              <th class="py-2">Folio</th><th>Fecha</th><th>Etapa</th><th>Lote</th>
               <th>Pago</th><th>Cliente</th><th>Método</th><th class="text-right">Cantidad</th><th></th>
             </tr>
           </thead>
@@ -133,7 +133,6 @@ export function render(container) {
               <tr class="border-b border-gray-100 dark:border-gray-700/50">
                 <td class="py-2">${x.folio ?? '—'}</td>
                 <td class="whitespace-nowrap">${prettyDate(x.fecha)}</td>
-                <td class="whitespace-nowrap">${esc(x.recibo || '—')}</td>
                 <td class="whitespace-nowrap">${esc(x.etapa || '—')}</td>
                 <td class="whitespace-nowrap">${esc(x.lote || '—')}</td>
                 <td>${esc(x.categoria)}</td>
@@ -149,7 +148,7 @@ export function render(container) {
           </tbody>
           <tfoot>
             <tr class="font-semibold border-t-2 border-gray-200 dark:border-gray-700">
-              <td class="py-2" colspan="8">Total filtrado</td>
+              <td class="py-2" colspan="7">Total filtrado</td>
               <td class="text-right text-green-600">${money(total)}</td><td></td>
             </tr>
           </tfoot>
