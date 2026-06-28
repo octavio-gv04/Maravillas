@@ -18,6 +18,8 @@ export function render(container) {
   let modo = 'pago';   // 'pago' | 'venta'
   let query = '';
   let fEtapa = 'Todas';
+  let page = 0;        // página de la tabla (100 por página)
+  let _pages = 1;      // total de páginas (lo fija tableCard)
 
   // Lote de la Base Maestra por su clave (para autocompletar / prellenar en Venta).
   const loteDe = (clave) => lotes.all().find((l) => keyOf(l.numero) === keyOf(clave));
@@ -98,9 +100,12 @@ export function render(container) {
           .some((f) => String(f || '').toLowerCase().includes(q)));
     }
     const total = list.reduce((a, x) => a + toNum(x.monto), 0);
-    const LIMIT = 150;
-    const shown = list.slice(0, LIMIT);
-    const hayMas = list.length > LIMIT;
+    const PER = 100;
+    _pages = Math.max(1, Math.ceil(list.length / PER));
+    if (page > _pages - 1) page = _pages - 1;
+    if (page < 0) page = 0;
+    const start = page * PER;
+    const shown = list.slice(start, start + PER);
 
     const etapaTabs = ['Todas', ...ETAPAS_INGRESO].map((e) =>
       `<button data-etapa="${esc(e)}" class="px-3 py-1 rounded-full text-xs border ${e === fEtapa ? 'bg-brand text-white border-brand' : 'border-gray-300 dark:border-gray-600'}">${esc(e)}</button>`).join('');
@@ -145,7 +150,11 @@ export function render(container) {
           </tfoot>
         </table>
       </div>
-      ${hayMas ? `<p class="text-xs text-gray-400 mt-2">Mostrando ${LIMIT} de ${list.length}. Usa el buscador para encontrar registros específicos.</p>` : ''}` : empty('No hay ingresos que coincidan')}
+      ${_pages > 1 ? `<div class="flex items-center justify-between gap-2 mt-3 text-sm">
+        <button data-pg="prev" class="inline-flex items-center gap-1 px-3 min-h-[2.25rem] rounded-lg border border-gray-300 dark:border-gray-600 ${page === 0 ? 'opacity-40 pointer-events-none' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}">${svgIcon('chevronLeft', 'w-4 h-4')} Anteriores</button>
+        <span class="text-gray-500 tabular-nums">Página ${page + 1} de ${_pages} · ${start + 1}–${Math.min(start + PER, list.length)} de ${list.length}</span>
+        <button data-pg="next" class="inline-flex items-center gap-1 px-3 min-h-[2.25rem] rounded-lg border border-gray-300 dark:border-gray-600 ${page >= _pages - 1 ? 'opacity-40 pointer-events-none' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}">Siguientes ${svgIcon('chevronRight', 'w-4 h-4')}</button>
+      </div>` : ''}` : empty('No hay ingresos que coincidan')}
     `);
   };
 
@@ -335,13 +344,17 @@ export function render(container) {
         }
       }));
 
+    container.querySelector('[data-pg="prev"]')?.addEventListener('click', () => { if (page > 0) { page--; redrawTable(); } });
+    container.querySelector('[data-pg="next"]')?.addEventListener('click', () => { if (page < _pages - 1) { page++; redrawTable(); } });
+
     container.querySelectorAll('[data-etapa]').forEach((b) =>
-      b.addEventListener('click', () => { fEtapa = b.dataset.etapa; redrawTable(); }));
+      b.addEventListener('click', () => { fEtapa = b.dataset.etapa; page = 0; redrawTable(); }));
 
     const search = container.querySelector('#ing-search');
     if (search) {
       search.addEventListener('input', () => {
         query = search.value;
+        page = 0;
         redrawTable();
         const s = container.querySelector('#ing-search');
         s.focus(); s.setSelectionRange(s.value.length, s.value.length);
