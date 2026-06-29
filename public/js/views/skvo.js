@@ -14,7 +14,7 @@ import {
   SKVO_CAT_GASTO, SKVO_CAT_INGRESO, SKVO_ENTREGO, SKVO_ETAPAS,
   METODOS_GASTO, METODOS_INGRESO, SKVO_ETAPA_DEFAULT,
 } from '../config.js';
-import { money, prettyDate, todayISO, esc, toNum, toast, confirmAction } from '../utils.js';
+import { money, prettyDate, todayISO, esc, toNum, toast, confirmAction, mesLargo } from '../utils.js';
 import { card, btn, btnGhost, field, select, sectionHead, empty, cardTitle, actionBtn, monthNav, wireMonthNav } from '../ui.js';
 import { svgIcon } from '../icons.js';
 import { can } from '../auth.js';
@@ -37,7 +37,7 @@ export function render(container) {
     const fila = (l, v, cls = '') => `<div class="flex justify-between py-0.5 ${cls}"><span>${esc(l)}</span><span class="tabular-nums">${money(v)}</span></div>`;
     return card(`
       <div class="flex items-center justify-between flex-wrap gap-3 mb-2">
-        ${cardTitle('skvoLogo', `SKVO — resumen de ${mes}`, 'bg-amber-500')}
+        ${cardTitle('skvoLogo', `SKVO — resumen de ${mesLargo(mes)}`, 'bg-amber-500')}
         ${monthNav(mes)}
       </div>
       <div class="grid sm:grid-cols-3 gap-3 text-sm">
@@ -95,7 +95,7 @@ export function render(container) {
       .sort((a, b) => (b.fecha + (b.creado || '')).localeCompare(a.fecha + (a.creado || '')));
     const total = list.reduce((a, x) => a + toNum(x.monto), 0);
     return card(`
-      ${sectionHead(`Gastos SKVO de ${esc(mes)} (${list.length}) · ${money(total)}`)}
+      ${sectionHead(`Gastos SKVO de ${esc(mesLargo(mes))} (${list.length}) · ${money(total)}`)}
       ${list.length ? `
       <div class="table-wrap"><table class="w-full text-sm">
         <thead class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-700">
@@ -130,7 +130,7 @@ export function render(container) {
       .sort((a, b) => (b.fecha + (b.creado || '')).localeCompare(a.fecha + (a.creado || '')));
     const total = list.reduce((a, x) => a + toNum(x.monto), 0);
     return card(`
-      ${sectionHead(`Ingresos SKVO de ${esc(mes)} (${list.length}) · ${money(total)}`)}
+      ${sectionHead(`Ingresos SKVO de ${esc(mesLargo(mes))} (${list.length}) · ${money(total)}`)}
       ${list.length ? `
       <div class="table-wrap"><table class="w-full text-sm">
         <thead class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-700">

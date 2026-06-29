@@ -7,7 +7,7 @@
 import { subscribe } from '../../store.js';
 import { dashboard, etapaActiva, setEtapa } from '../../maestra.js';
 import { money, esc, todayISO } from '../../utils.js';
-import { card } from '../../ui.js';
+import { card, monthNav, wireMonthNav } from '../../ui.js';
 import { svgIcon } from '../../icons.js';
 import { navigate } from '../../router.js';
 import { ETAPAS_MAESTRA } from '../../config.js';
@@ -47,7 +47,7 @@ export function render(container) {
           <h2 class="text-xl font-semibold">Dashboard</h2>
           <p class="text-sm text-gray-500">Centro operativo · sincronizado en tiempo real con el Control Diario</p>
         </div>
-        <input id="m-mes" type="month" class="field !w-44" value="${mes}" />
+        ${monthNav(mes)}
       </div>
 
       <p class="text-xs uppercase tracking-wide text-gray-500 mb-2">Elige la etapa</p>
@@ -96,7 +96,7 @@ export function render(container) {
       el.addEventListener('click', () => navigate(el.dataset.go)));
     container.querySelectorAll('[data-etapa]').forEach((b) =>
       b.addEventListener('click', () => { setEtapa(b.dataset.etapa); draw(); }));
-    container.querySelector('#m-mes').addEventListener('change', (e) => { mes = e.target.value || mes; draw(); });
+    wireMonthNav(container, mes, (m) => { mes = m; draw(); });
 
     renderChart(d.serieIngresosMes);
   };

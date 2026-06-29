@@ -32,6 +32,14 @@ export function prettyDate(iso) {
   return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
 }
 
+/** Mes legible a partir de 'YYYY-MM': "2026-06" -> "Junio 2026". */
+const MESES_LARGO = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+export function mesLargo(ym) {
+  const [y, m] = String(ym || '').split('-');
+  return m ? `${MESES_LARGO[+m] || ''} ${y}`.trim() : String(ym || '');
+}
+
 /** Hora actual legible HH:MM. */
 export const nowTime = () =>
   new Date().toLocaleTimeString(APP.locale, { hour: '2-digit', minute: '2-digit' });

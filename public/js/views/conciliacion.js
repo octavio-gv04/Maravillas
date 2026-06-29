@@ -8,7 +8,7 @@ import { conciliacionMensual } from '../calc.js';
 import { subscribe } from '../store.js';
 import { ZONAS } from '../config.js';
 import { money, esc, todayISO } from '../utils.js';
-import { card, badge, cardTitle } from '../ui.js';
+import { card, badge, cardTitle, monthNav, wireMonthNav } from '../ui.js';
 
 export function render(container) {
   let mes = todayISO().slice(0, 7); // 'YYYY-MM'
@@ -40,7 +40,7 @@ export function render(container) {
     container.innerHTML = `
       <div class="flex items-center gap-3 mb-4 flex-wrap">
         <label class="text-sm text-gray-500">Mes:</label>
-        <input id="con-mes" type="month" class="field !w-48" value="${mes}" />
+        ${monthNav(mes)}
         <span class="text-sm text-gray-400">${esc(c.desde)} → ${esc(c.hasta)}</span>
       </div>
 
@@ -98,10 +98,7 @@ export function render(container) {
       </div>
     `;
 
-    container.querySelector('#con-mes').addEventListener('change', (e) => {
-      mes = e.target.value || todayISO().slice(0, 7);
-      draw();
-    });
+    wireMonthNav(container, mes, (m) => { mes = m; draw(); });
   };
 
   draw();
