@@ -113,7 +113,7 @@ export function render(container) {
       </div>
       <div id="corte-hoy" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
         <label class="block"><span class="text-xs font-medium text-gray-600 dark:text-gray-300">Efectivo contado</span>
-          <input type="number" step="0.01" min="0" data-field="contado" class="field mt-1 text-right tabular-nums" placeholder="0.00" value="${hoyContado != null ? hoyContado : ''}" /></label>
+          <input type="text" inputmode="decimal" data-money data-field="contado" class="field mt-1 text-right tabular-nums" placeholder="$0.00" value="${hoyContado != null ? money(hoyContado) : ''}" /></label>
         <div><span class="text-xs font-medium text-gray-600 dark:text-gray-300">Diferencia</span>
           <p class="mt-1 font-semibold tabular-nums ${hoyDif.cls}" data-dif>${hoyDif.txt}</p></div>
         <label class="block"><span class="text-xs font-medium text-gray-600 dark:text-gray-300">Recibió (quién recoge)</span>
@@ -138,7 +138,7 @@ export function render(container) {
       <tr class="border-b border-gray-100 dark:border-gray-700/50" data-fecha="${f.iso}">
         <td class="px-3 py-1.5 font-medium whitespace-nowrap">${esc(etiquetaFecha(f.iso))}</td>
         <td class="px-3 py-1.5 text-right tabular-nums" data-flujo data-esperado="${f.esperado}">${money(f.esperado)}</td>
-        <td class="px-2 py-1"><input type="number" step="0.01" min="0" data-field="contado" class="field !py-1 !w-28 text-right tabular-nums" placeholder="0.00" value="${f.contado != null ? f.contado : ''}" /></td>
+        <td class="px-2 py-1"><input type="text" inputmode="decimal" data-money data-field="contado" class="field !py-1 !w-32 text-right tabular-nums" placeholder="$0.00" value="${f.contado != null ? money(f.contado) : ''}" /></td>
         <td class="px-3 py-1.5 text-right tabular-nums ${f.dif.cls}" data-dif>${f.dif.txt}</td>
         <td class="px-3 py-1.5 text-center">${estadoEntrega(f)}</td>
         <td class="px-2 py-1">

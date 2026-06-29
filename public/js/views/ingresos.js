@@ -6,7 +6,7 @@
 
 import { ingresos, lotes, subscribe } from '../store.js';
 import { CAT_INGRESOS, METODOS_INGRESO, ETAPAS_INGRESO, VENDEDORES, CAT_VENTA_LOTE, CAT_VENTA_FORM } from '../config.js';
-import { money, prettyDate, todayISO, esc, toNum, toast, confirmAction } from '../utils.js';
+import { money, prettyDate, todayISO, esc, toNum, toast, confirmAction, formatMoneyIn } from '../utils.js';
 import { card, btn, btnGhost, field, select, textarea, sectionHead, empty, badge, cardTitle, actionBtn, monthNav, wireMonthNav } from '../ui.js';
 import { svgIcon } from '../icons.js';
 import { can } from '../auth.js';
@@ -48,9 +48,9 @@ export function render(container) {
       ${field({ label: 'Email', name: 'email', type: 'email', placeholder: 'correo@ejemplo.com' })}
       ${select({ label: 'Vendedor', name: 'vendedor', options: ['', ...VENDEDORES] })}
       ${select({ label: 'Tipo (método)', name: 'metodo', options: METODOS_INGRESO })}
-      ${field({ label: 'Enganche / pago', name: 'monto', type: 'number', attrs: 'step="0.01" min="0" required' })}
-      ${field({ label: 'Precio del lote', name: 'precio', type: 'number', attrs: 'step="0.01" min="0"' })}
-      ${field({ label: 'Mensualidad', name: 'mensualidad', type: 'number', attrs: 'step="0.01" min="0"' })}
+      ${field({ label: 'Enganche / pago', name: 'monto', money: true, attrs: 'required' })}
+      ${field({ label: 'Precio del lote', name: 'precio', money: true })}
+      ${field({ label: 'Mensualidad', name: 'mensualidad', money: true })}
       <div class="sm:col-span-2 lg:col-span-4">
         ${textarea({ label: 'Observaciones', name: 'observaciones' })}
       </div>`;
@@ -63,8 +63,8 @@ export function render(container) {
       ${field({ label: 'Cliente', name: 'cliente', placeholder: 'Cliente (de la Base Maestra)', attrs: 'list="dl-clientes" autocomplete="off"' })}
       ${select({ label: 'Vendedor', name: 'vendedor', options: ['', ...VENDEDORES] })}
       ${select({ label: 'Tipo (método)', name: 'metodo', options: METODOS_INGRESO })}
-      ${field({ label: 'Cantidad', name: 'monto', type: 'number', attrs: 'step="0.01" min="0" required' })}
-      ${field({ label: 'Saldo', name: 'saldo', type: 'number', attrs: 'step="0.01"' })}
+      ${field({ label: 'Cantidad', name: 'monto', money: true, attrs: 'required' })}
+      ${field({ label: 'Saldo', name: 'saldo', money: true })}
       <label class="flex items-center gap-2 mt-5 text-sm">
         <input type="checkbox" name="verificado" class="w-4 h-4" /> Verificado
       </label>
@@ -197,6 +197,7 @@ export function render(container) {
           const l = loteDe(item.lote);
           if (l) { setVal('telefono', l.telefono || ''); setVal('email', l.email || ''); setVal('precio', l.precio || ''); setVal('mensualidad', l.mensualidad || ''); }
         }
+        formatMoneyIn(form); // muestra los montos prellenados como $1,234.00
       }
     }
 

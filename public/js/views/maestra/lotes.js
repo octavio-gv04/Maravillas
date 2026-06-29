@@ -77,7 +77,7 @@ export function render(container) {
         ${field({ label: 'Número de lote', name: 'numero', value: editing.numero || '', attrs: 'required' })}
         ${field({ label: 'Manzana', name: 'manzana', value: editing.manzana || '' })}
         ${field({ label: 'Superficie (m²)', name: 'superficie', type: 'number', value: editing.superficie || '', attrs: 'step="0.01"' })}
-        ${field({ label: 'Precio original', name: 'precio', type: 'number', value: editing.precio || '', attrs: 'step="0.01"' })}
+        ${field({ label: 'Precio original', name: 'precio', money: true, value: editing.precio || '' })}
         ${field({ label: 'Cliente / dueño', name: 'cliente', value: editing.cliente || '', attrs: 'list="dl-cli-lote" autocomplete="off"' })}
         ${field({ label: 'Vendedor', name: 'vendedor', value: cleanVend(editing.vendedor), attrs: 'list="dl-vend-lote" autocomplete="off"' })}
         ${select({ label: 'Estado', name: 'estado', options: ESTADOS_LOTE, value: editing.estado || 'Disponible' })}

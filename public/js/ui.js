@@ -3,7 +3,7 @@
  * Mantiene las vistas cortas y consistentes con la paleta de marca.
  */
 
-import { esc } from './utils.js';
+import { esc, money, toNum } from './utils.js';
 import { iconChip, svgIcon } from './icons.js';
 
 /** Tarjeta-contenedor. */
@@ -31,8 +31,18 @@ export const btn = (label, attrs = '') =>
 export const btnGhost = (label, attrs = '') =>
   `<button class="border border-gray-300 dark:border-gray-600 inline-flex items-center justify-center min-h-[2.5rem] px-3 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition" ${attrs}>${label}</button>`;
 
-/** Campo de texto/numero/fecha con etiqueta. */
-export function field({ label, name, type = 'text', value = '', attrs = '', placeholder = '' }) {
+/** Campo de texto/numero/fecha con etiqueta. `money:true` lo convierte en campo
+ *  de dinero: se muestra formateado ($1,234.00) y se edita como número plano. */
+export function field({ label, name, type = 'text', value = '', attrs = '', placeholder = '', money: isMoney = false }) {
+  if (isMoney) {
+    const val = (value === '' || value == null) ? '' : money(toNum(value));
+    return `
+    <label class="block">
+      <span class="text-xs font-medium text-gray-600 dark:text-gray-300">${esc(label)}</span>
+      <input class="field mt-1 text-right tabular-nums" type="text" inputmode="decimal" data-money name="${name}"
+             value="${esc(val)}" placeholder="${esc(placeholder || '$0.00')}" ${attrs} />
+    </label>`;
+  }
   // En inputs nativos de fecha forzamos locale mexicano (dd/mm/aaaa) en Safari/Chrome.
   const lang = (type === 'date' || type === 'month') ? 'lang="es-MX"' : '';
   // Las claves de lote se ven y se guardan en MAYÚSCULAS (uniformidad).

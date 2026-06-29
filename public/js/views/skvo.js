@@ -14,7 +14,7 @@ import {
   SKVO_CAT_GASTO, SKVO_CAT_INGRESO, SKVO_ENTREGO, SKVO_ETAPAS,
   METODOS_GASTO, METODOS_INGRESO, SKVO_ETAPA_DEFAULT,
 } from '../config.js';
-import { money, prettyDate, todayISO, esc, toNum, toast, confirmAction, mesLargo } from '../utils.js';
+import { money, prettyDate, todayISO, esc, toNum, toast, confirmAction, mesLargo, formatMoneyIn } from '../utils.js';
 import { card, btn, btnGhost, field, select, sectionHead, empty, cardTitle, actionBtn, monthNav, wireMonthNav } from '../ui.js';
 import { svgIcon } from '../icons.js';
 import { can } from '../auth.js';
@@ -57,7 +57,7 @@ export function render(container) {
     <form id="skvo-form" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
       ${field({ label: 'Fecha', name: 'fecha', type: 'date', value: todayISO(), attrs: 'required' })}
       ${select({ label: 'Categoría', name: 'categoria', options: SKVO_CAT_GASTO })}
-      ${field({ label: 'Cantidad', name: 'monto', type: 'number', attrs: 'step="0.01" min="0" required' })}
+      ${field({ label: 'Cantidad', name: 'monto', money: true, attrs: 'required' })}
       ${select({ label: 'Método', name: 'metodo', options: METODOS_GASTO })}
       ${select({ label: 'Etapa', name: 'etapa', options: SKVO_ETAPAS, value: SKVO_ETAPA_DEFAULT })}
       ${select({ label: 'Entregó', name: 'entrego', options: ['', ...SKVO_ENTREGO] })}
@@ -76,7 +76,7 @@ export function render(container) {
     <form id="skvo-form" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
       ${field({ label: 'Fecha', name: 'fecha', type: 'date', value: todayISO(), attrs: 'required' })}
       ${select({ label: 'Categoría', name: 'categoria', options: SKVO_CAT_INGRESO })}
-      ${field({ label: 'Cantidad', name: 'monto', type: 'number', attrs: 'step="0.01" min="0" required' })}
+      ${field({ label: 'Cantidad', name: 'monto', money: true, attrs: 'required' })}
       ${select({ label: 'Método', name: 'metodo', options: METODOS_INGRESO })}
       ${select({ label: 'Etapa / destino', name: 'etapa', options: SKVO_ETAPAS, value: SKVO_ETAPA_DEFAULT })}
       ${field({ label: 'Lote', name: 'lote', placeholder: 'Opcional' })}
@@ -180,7 +180,7 @@ export function render(container) {
     const form = container.querySelector('#skvo-form');
     if (editId) {
       const item = col().all().find((x) => x.id === editId);
-      if (item) [...form.elements].forEach((el) => { if (el.name && item[el.name] != null) el.value = item[el.name]; });
+      if (item) { [...form.elements].forEach((el) => { if (el.name && item[el.name] != null) el.value = item[el.name]; }); formatMoneyIn(form); }
     }
 
     form.addEventListener('submit', async (e) => {

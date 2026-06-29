@@ -8,7 +8,7 @@
 
 import { gastos, subscribe } from '../store.js';
 import { CAT_GASTOS, METODOS_GASTO, ETAPAS_GASTO, VENDEDORES, ZONAS } from '../config.js';
-import { money, prettyDate, todayISO, esc, toNum, toast, confirmAction } from '../utils.js';
+import { money, prettyDate, todayISO, esc, toNum, toast, confirmAction, formatMoneyIn } from '../utils.js';
 import { card, btn, btnGhost, field, select, sectionHead, empty, cardTitle, actionBtn, monthNav, wireMonthNav } from '../ui.js';
 import { svgIcon } from '../icons.js';
 import { can } from '../auth.js';
@@ -40,7 +40,7 @@ export function render(container) {
       ${field({ label: 'Fecha', name: 'fecha', type: 'date', value: todayISO(), attrs: 'required' })}
       ${select({ label: 'Etapa', name: 'etapa', options: ETAPAS_GASTO })}
       ${select({ label: 'Categoría', name: 'categoria', options: catGasto })}
-      ${field({ label: 'Cantidad', name: 'monto', type: 'number', attrs: 'step="0.01" min="0" required' })}
+      ${field({ label: 'Cantidad', name: 'monto', money: true, attrs: 'required' })}
       ${field({ label: 'Lote', name: 'lote', placeholder: 'Ej. M41-L26 (opcional)', attrs: 'list="dl-lotes" autocomplete="off"' })}
       ${select({ label: 'Recibe (persona)', name: 'recibe', options: ['', ...VENDEDORES] })}
       ${select({ label: 'Tipo (método)', name: 'metodo', options: METODOS_GASTO })}
@@ -55,7 +55,7 @@ export function render(container) {
       ${select({ label: 'Etapa', name: 'etapa', options: ZONAS })}
       ${field({ label: 'Lote a cancelar', name: 'lote', placeholder: 'Ej. M39-L25', attrs: 'list="dl-lotes" autocomplete="off" required' })}
       ${field({ label: 'Cliente (a quien se devuelve)', name: 'beneficiario', placeholder: 'Nombre completo', attrs: 'list="dl-clientes" autocomplete="off" required' })}
-      ${field({ label: 'Monto a devolver', name: 'monto', type: 'number', attrs: 'step="0.01" min="0" required' })}
+      ${field({ label: 'Monto a devolver', name: 'monto', money: true, attrs: 'required' })}
       ${select({ label: 'Tipo (método)', name: 'metodo', options: METODOS_GASTO })}
       <div class="sm:col-span-2 lg:col-span-4">
         ${field({ label: 'Motivo / concepto', name: 'concepto', placeholder: 'Ej. Cancelación por desistimiento del cliente' })}
@@ -177,6 +177,7 @@ export function render(container) {
         setVal('metodo', item.metodo);
         setVal('concepto', item.concepto);
         setVal('beneficiario', item.beneficiario || '');
+        formatMoneyIn(form); // muestra el monto prellenado como $1,234.00
       }
     }
 

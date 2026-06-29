@@ -52,9 +52,10 @@
 textarea.field { height:auto; }
 .field:focus { border-color:#1d4ed8; box-shadow:0 0 0 3px rgba(29,78,216,.18); }
 
-/* Oculta el spinner nativo feo en inputs number de algunos navegadores no afecta funcionalidad */
+/* Oculta por completo las flechitas (spinner) de los inputs numéricos. */
 input[type=number]::-webkit-outer-spin-button,
-input[type=number]::-webkit-inner-spin-button { margin:0; }
+input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 /* En modo oscuro el icono nativo del calendario (date/month) se ve negro y casi
    no se nota; lo invertimos a blanco para que resalte sobre el fondo oscuro. */

@@ -34,10 +34,10 @@ export function render(container) {
         <label class="block"><span class="text-xs font-medium text-gray-600 dark:text-gray-300">Lote</span>
           <input class="field mt-1 uppercase" name="lote" list="dl-lote" value="${esc(editing.lote || '')}" required /></label>
         ${field({ label: 'Fecha de firma', name: 'fechaFirma', type: 'date', value: editing.fechaFirma || todayISO() })}
-        ${field({ label: 'Precio', name: 'precio', type: 'number', value: editing.precio || '', attrs: 'step="0.01"' })}
-        ${field({ label: 'Enganche', name: 'enganche', type: 'number', value: editing.enganche || '', attrs: 'step="0.01"' })}
+        ${field({ label: 'Precio', name: 'precio', money: true, value: editing.precio || '' })}
+        ${field({ label: 'Enganche', name: 'enganche', money: true, value: editing.enganche || '' })}
         ${field({ label: 'Plazo (meses)', name: 'plazo', type: 'number', value: editing.plazo || '' })}
-        ${field({ label: 'Mensualidad', name: 'mensualidad', type: 'number', value: editing.mensualidad || '', attrs: 'step="0.01"' })}
+        ${field({ label: 'Mensualidad', name: 'mensualidad', money: true, value: editing.mensualidad || '' })}
         ${select({ label: 'Estado', name: 'estado', options: ESTADOS_CONTRATO, value: editing.estado || 'Activo' })}
         <div class="sm:col-span-2 flex gap-2 justify-end">
           ${btnGhost('Cancelar', 'type="button" id="cancel"')}

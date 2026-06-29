@@ -14,8 +14,12 @@ const moneyFmt = new Intl.NumberFormat(APP.locale, {
 /** Formatea un numero a moneda local. Ej: 1234.5 -> "$1,234.50" */
 export const money = (n) => moneyFmt.format(Number(n) || 0);
 
-/** Convierte cualquier entrada a numero seguro (2 decimales). */
-export const toNum = (v) => Math.round((Number(v) || 0) * 100) / 100;
+/** Convierte cualquier entrada a numero seguro (2 decimales). Tolera formato de
+ *  moneda: "$60,050.00" -> 60050. (Quita todo menos dígitos, punto y signo). */
+export const toNum = (v) => {
+  const n = Number(String(v ?? '').replace(/[^0-9.\-]/g, ''));
+  return Math.round((n || 0) * 100) / 100;
+};
 
 // ---------- Fechas ----------
 /** Fecha de hoy en formato ISO corto YYYY-MM-DD (zona local). */
@@ -79,6 +83,35 @@ export function toast(msg, type = 'info') {
 
 /** Confirmacion simple (envuelve window.confirm para centralizar/cambiar luego). */
 export const confirmAction = (msg) => window.confirm(msg);
+
+// ---------- Campos de dinero ($ + miles) ----------
+/** Formatea a moneda todos los inputs [data-money] dentro de root. */
+export function formatMoneyIn(root) {
+  (root || document).querySelectorAll('[data-money]').forEach((el) => {
+    el.value = el.value.trim() === '' ? '' : money(toNum(el.value));
+  });
+}
+
+/**
+ * Instala (una vez) el comportamiento de los campos de dinero: al enfocar se
+ * muestra el número plano para editar; al salir se formatea como $1,234.00.
+ * El guardado lee el valor con toNum, que ya tolera el formato.
+ */
+export function installMoneyInputs() {
+  document.addEventListener('focusin', (e) => {
+    const el = e.target;
+    if (el && el.matches && el.matches('[data-money]')) {
+      el.value = el.value.trim() === '' ? '' : String(toNum(el.value));
+      try { el.select(); } catch {}
+    }
+  });
+  document.addEventListener('focusout', (e) => {
+    const el = e.target;
+    if (el && el.matches && el.matches('[data-money]')) {
+      el.value = el.value.trim() === '' ? '' : money(toNum(el.value));
+    }
+  });
+}
 
 // ---------- Validación de formularios en español ----------
 /**
