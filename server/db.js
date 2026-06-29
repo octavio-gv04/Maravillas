@@ -28,6 +28,9 @@ const EMPTY = () => ({
   // Datos maestros de la Base de Datos Maestra (Etapa 3). Historial del Excel +
   // pagos nuevos que llegan del Sistema Diario. `pagos` = historial migrado.
   lotes: [], contratos: [], vendedores: [], cobranza: [], pagos: [],
+  // sobres = revisión manual del sobre físico del cliente: itemización real
+  // mes a mes de un lote para corregir el historial y recalcular el atraso.
+  sobres: [],
   recibos_seq: 0, folio_ingreso: 100, folio_gasto: 100, folio_contrato: 100,
   folio_skvo_ingreso: 200, folio_skvo_gasto: 100,
 });

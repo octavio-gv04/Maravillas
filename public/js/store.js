@@ -20,7 +20,7 @@ import { getToken, logout } from './auth.js';
 const EMPTY_CACHE = () => ({
   ingresos: [], gastos: [], cortes: [], historial: [],
   skvoIngresos: [], skvoGastos: [],
-  lotes: [], contratos: [], vendedores: [], cobranza: [], pagos: [],
+  lotes: [], contratos: [], vendedores: [], cobranza: [], pagos: [], sobres: [],
 });
 let cache = EMPTY_CACHE();
 
@@ -179,6 +179,7 @@ export const contratos = makeCollection('contratos');
 export const vendedores = makeCollection('vendedores');
 export const cobranza = makeCollection('cobranza');
 export const pagos = makeCollection('pagos'); // historial migrado del Excel
+export const sobres = makeCollection('sobres'); // revisión manual del sobre físico (itemización por mes)
 
 /** Fecha de corte del Excel maestro (los pagos del Diario posteriores son "nuevos"). */
 export const maestraAsOf = () => cache.maestra_asof || '';

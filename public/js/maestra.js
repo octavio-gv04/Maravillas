@@ -15,7 +15,7 @@
 
 import {
   ingresos, gastos, lotes, contratos, vendedores,
-  cobranza as cobranzaCol, pagos as pagosCol, maestraAsOf,
+  cobranza as cobranzaCol, pagos as pagosCol, sobres as sobresCol, maestraAsOf,
 } from './store.js';
 import { toNum, todayISO } from './utils.js';
 import { ETAPA_MAESTRA_DEFAULT, ETAPAS_MAESTRA, STORAGE_ETAPA_MAESTRA, AGING_BUCKETS, CAT_ENGANCHE, CAT_ABONA_LOTE, CAT_VENTA_LOTE, MAESTRA_ASOF } from './config.js';
@@ -71,26 +71,126 @@ export const pagosHist = () => pagosCol.all().filter((p) => !p.etapa || ci(p.eta
 const idxLive = () => groupBy(pagosLive(), (p) => keyOf(p.lote));
 const idxHist = () => groupBy(pagosHist(), (p) => keyOf(p.lote));
 
+// ---------- Revisión de Sobres (itemización real mes a mes del sobre físico) ----------
+/** Índice clave de lote → último sobre REVISADO (corrige historial y atraso). */
+const idxSobres = () => {
+  const m = new Map();
+  for (const s of sobresCol.all()) {
+    if (!s || !s.revisado || !s.lote) continue;
+    const k = keyOf(s.lote);
+    const prev = m.get(k);
+    if (!prev || (s.fecha || '') >= (prev.fecha || '')) m.set(k, s);
+  }
+  return m;
+};
+/** Sobre revisado de un lote (o null). */
+export const sobreDe = (loteClave) => idxSobres().get(keyOf(loteClave)) || null;
+
+/**
+ * Atraso derivado de la línea de tiempo: compara lo exigible por el tiempo
+ * transcurrido (enganche + mensualidad × meses desde el inicio) contra lo pagado.
+ * Reemplaza el `retrasoMeses` del Excel cuando el sobre ya fue revisado.
+ */
+function retrasoDerivado({ inicioMes, mens, precio, enganche, totalPagado, hoy = todayISO() }) {
+  if (mens <= 0) return 0;
+  const debe = Math.max(0, precio - totalPagado);
+  if (debe <= 0.01) return 0;
+  const transc = inicioMes && inicioMes.length >= 7 ? Math.max(0, mesesEntre(inicioMes + '-01', hoy)) : 0;
+  const esperado = Math.min(precio, enganche + mens * transc);
+  const deficit = Math.max(0, esperado - totalPagado);
+  const retr = Math.ceil(deficit / mens - 1e-9);
+  const maxMeses = Math.ceil(debe / mens - 1e-9);   // no puede deber más meses que su saldo
+  return Math.max(0, Math.min(retr, maxMeses));
+}
+
+// ---------- Cálculo financiero POR LOTE (base Excel + deltas vivos) ----------
+/**
+ * Estado financiero de un lote vendido cruzando la base del Excel con los pagos
+ * nuevos del Diario: pago acumulado, saldo, meses de atraso y última fecha de
+ * pago. Es la unidad de cálculo común para `clientes()` (agregado) y para la
+ * cobranza/morosidad POR LOTE.
+ */
+function calcLote(l, live, hist, sobs) {
+  const lk = keyOf(l.numero);
+  const liveL = live.get(lk) || [];
+  const extra = sum(liveL);                       // pagos nuevos del Diario para este lote
+  const mens = toNum(l.mensualidad);
+  const sob = sobs ? sobs.get(lk) : null;
+
+  // Lote con SOBRE REVISADO: el total y el atraso se derivan de la itemización
+  // real (enganche + abonos por mes + ajuste) y de la línea de tiempo, NO del
+  // snapshot del Excel (que quedó inconsistente).
+  if (sob) {
+    const precio = toNum(l.precio);
+    const eng = toNum(sob.enganche ?? l.enganche);
+    const sumMeses = sum(sob.meses || [], (m) => m.monto);
+    const ajuste = toNum(sob.ajuste);
+    const pago = eng + sumMeses + ajuste + extra;
+    const debe = Math.max(0, precio - pago);
+    const inicioMes = (sob.inicio || (sob.fechaEnganche || '').slice(0, 7) || '');
+    const retr = retrasoDerivado({ inicioMes, mens, precio, enganche: eng, totalPagado: pago });
+    let ultimo = sob.fechaEnganche || '';
+    for (const m of (sob.meses || [])) if (toNum(m.monto) > 0 && (m.periodo || '') + '-01' > ultimo) ultimo = (m.periodo || '') + '-01';
+    for (const p of liveL) if ((p.fecha || '') > ultimo) ultimo = p.fecha;
+    return { mens, pago, debe, retr, ultimo, revisado: true };
+  }
+
+  const pago = toNum(l.pago) + extra;
+  const debe = Math.max(0, toNum(l.debe) - extra);
+  const retr = Math.max(0, (Number(l.retrasoMeses) || 0) - (mens > 0 ? Math.floor(extra / mens) : 0));
+
+  // última fecha de pago (histórico + vivo)
+  let ultimo = '';
+  for (const p of (hist.get(lk) || [])) if (p.fecha > ultimo) ultimo = p.fecha;
+  for (const p of liveL) if ((p.fecha || '') > ultimo) ultimo = p.fecha;
+
+  return { mens, pago, debe, retr, ultimo, revisado: false };
+}
+
+/**
+ * Cada lote vendido como fila independiente de cobranza (saldo/atraso propios).
+ * A diferencia de `clientes()`, NO agrega los lotes de un mismo cliente: cada
+ * lote refleja su propia situación. `clienteKey` permite ligar las notas de
+ * gestión, que se guardan por cliente.
+ */
+export function lotesCliente() {
+  const vendidos = lotesEtapa().filter((l) => ci(l.estado, 'Vendido') && l.cliente);
+  const live = idxLive();
+  const hist = idxHist();
+  const sobs = idxSobres();
+  return vendidos.map((l) => {
+    const { mens, pago, debe, retr, ultimo, revisado } = calcLote(l, live, hist, sobs);
+    const liquidado = debe <= 0.01;
+    const atrasoMeses = liquidado ? 0 : retr;
+    const lk = keyOf(l.numero);
+    return {
+      key: keyOf(l.cliente) + '|' + lk,        // único por lote (selección de fila)
+      clienteKey: keyOf(l.cliente),            // para ligar notas (se guardan por cliente)
+      nombre: (l.cliente || '').trim(),
+      lote: l.numero, lotes: [l.numero],
+      vendedor: /seleccionar/i.test(l.vendedor || '') ? '' : (l.vendedor || ''),
+      telefono: l.telefono && l.telefono !== 'Sin Registro' ? l.telefono : '',
+      totalPagado: pago, saldo: debe, mensualidad: mens,
+      precio: toNum(l.precio), enganche: toNum(l.enganche), plazo: Number(l.plazo) || 0,
+      atrasoMeses, atraso: atrasoMeses * 30,
+      bucket: bucketMeses(atrasoMeses),
+      estado: liquidado ? 'Liquidado' : (atrasoMeses > 0 ? 'Moroso' : 'Activo'),
+      ultimoPago: ultimo, sobreRevisado: !!revisado,
+    };
+  }).sort((a, b) => a.nombre.localeCompare(b.nombre)
+    || String(a.lote).localeCompare(String(b.lote), 'es', { numeric: true }));
+}
+
 // ---------- Clientes (base Excel + deltas vivos) ----------
 export function clientes() {
   const vendidos = lotesEtapa().filter((l) => ci(l.estado, 'Vendido') && l.cliente);
   const live = idxLive();
   const hist = idxHist();
+  const sobs = idxSobres();
   const byCli = new Map();
 
   for (const l of vendidos) {
-    const lk = keyOf(l.numero);
-    const liveL = live.get(lk) || [];
-    const extra = sum(liveL);                       // pagos nuevos del Diario para este lote
-    const mens = toNum(l.mensualidad);
-    const pago = toNum(l.pago) + extra;
-    const debe = Math.max(0, toNum(l.debe) - extra);
-    const retr = Math.max(0, (Number(l.retrasoMeses) || 0) - (mens > 0 ? Math.floor(extra / mens) : 0));
-
-    // última fecha de pago (histórico + vivo)
-    let ultimo = '';
-    for (const p of (hist.get(lk) || [])) if (p.fecha > ultimo) ultimo = p.fecha;
-    for (const p of liveL) if ((p.fecha || '') > ultimo) ultimo = p.fecha;
+    const { pago, debe, retr, ultimo } = calcLote(l, live, hist, sobs);
 
     const k = keyOf(l.cliente);
     if (!byCli.has(k)) {
@@ -133,17 +233,59 @@ export function clientes() {
 export const clientePorKey = (k) => clientes().find((c) => c.key === k) || null;
 
 // ---------- Estado de cuenta ----------
+/** Estado de cuenta agregado de un cliente (suma de todos sus lotes). */
 export function estadoCuenta(clienteKey) {
   const c = clientePorKey(clienteKey);
-  if (!c) return null;
-  const ctr = c.contrato;
+  return c ? estadoDeCuenta(c) : null;
+}
+
+/** Estado de cuenta de UN solo lote (mismo cálculo, alcance de un lote). */
+export function estadoCuentaLote(loteClave) {
+  const c = lotesCliente().find((x) => keyOf(x.lote) === keyOf(loteClave));
+  return c ? estadoDeCuenta(c) : null;
+}
+
+/**
+ * Estado de cuenta de CADA lote de un cliente + la deuda total agregada.
+ * Para mostrar el detalle por lote y la deuda total cuando un cliente tiene varios.
+ */
+export function cuentasDeCliente(clienteKey) {
+  const ks = String(clienteKey ?? '');
+  const cuentas = lotesCliente().filter((l) => l.clienteKey === ks).map((l) => estadoDeCuenta(l));
+  return {
+    cuentas,
+    numLotes: cuentas.length,
+    deudaTotal: cuentas.reduce((a, ec) => a + ec.saldo, 0),
+    pagadoTotal: cuentas.reduce((a, ec) => a + ec.totalPagado, 0),
+    precioTotal: cuentas.reduce((a, ec) => a + ec.precioTotal, 0),
+  };
+}
+
+/**
+ * Núcleo del estado de cuenta. `c` es una "cuenta" con: lotes[], precio, enganche,
+ * mensualidad, plazo, totalPagado, saldo, atrasoMeses, ultimoPago, bucket, estado
+ * y opcionalmente contrato. Sirve igual para un cliente (suma de lotes) o un lote.
+ */
+function estadoDeCuenta(c) {
+  const ctr = c.contrato || null;
   const cut = asof();
 
-  // Historial completo: pagos del Excel + pagos nuevos del Diario, de sus lotes.
-  const claves = new Set(c.lotes.map(keyOf));
-  const hist = pagosHist().filter((p) => claves.has(keyOf(p.lote)))
-    .map((p) => ({ fecha: p.fecha, categoria: p.categoria, lote: p.lote, monto: toNum(p.monto), metodo: '', recibo: '', origen: 'Excel' }));
-  const live = pagosLive().filter((p) => claves.has(keyOf(p.lote)))
+  // Historial completo: para lotes con SOBRE REVISADO se usa la itemización real
+  // del sobre; para el resto, los pagos del Excel. Más los pagos vivos del Diario.
+  const claves = [...new Set(c.lotes.map(keyOf))];
+  const sobs = idxSobres();
+  const hist = [];
+  for (const k of claves) {
+    const sob = sobs.get(k);
+    if (sob) {
+      if (toNum(sob.enganche) > 0) hist.push({ fecha: sob.fechaEnganche || '', categoria: 'Enganche', lote: sob.lote, monto: toNum(sob.enganche), metodo: 'Sobre', recibo: '', origen: 'Sobre' });
+      for (const m of (sob.meses || [])) if (toNum(m.monto) > 0) hist.push({ fecha: (m.periodo || '') + '-01', categoria: 'Abono', lote: sob.lote, monto: toNum(m.monto), metodo: 'Sobre', recibo: m.recibo || '', origen: 'Sobre' });
+      if (toNum(sob.ajuste) > 0) hist.push({ fecha: sob.fechaEnganche || '', categoria: 'Ajuste', lote: sob.lote, monto: toNum(sob.ajuste), metodo: 'Sobre', recibo: '', origen: 'Sobre' });
+    } else {
+      for (const p of pagosHist()) if (keyOf(p.lote) === k) hist.push({ fecha: p.fecha, categoria: p.categoria, lote: p.lote, monto: toNum(p.monto), metodo: '', recibo: '', origen: 'Excel' });
+    }
+  }
+  const live = pagosLive().filter((p) => claves.includes(keyOf(p.lote)))
     .map((p) => ({ fecha: p.fecha, categoria: p.categoria, lote: p.lote, monto: toNum(p.monto), metodo: p.metodo || '', recibo: p.recibo || '', saldo: p.saldo, origen: 'Diario' }));
   const pagos = [...hist, ...live].sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
   const intereses = sum(live.filter((p) => ci(p.categoria, 'Recargo')));
@@ -230,6 +372,25 @@ function calendarioPagos(c, pagos, mensualidad, mesesRestantes) {
 // ---------- Cobranza ----------
 export function cobranza() {
   const conSaldo = clientes().filter((c) => c.saldo > 0.01);
+  const segmentos = AGING_BUCKETS.map((b) => {
+    const lista = conSaldo.filter((c) => c.bucket.key === b.key);
+    return { ...b, clientes: lista, total: sum(lista, (c) => c.saldo) };
+  });
+  const morosos = conSaldo.filter((c) => c.atrasoMeses > 0);
+  return {
+    segmentos,
+    totalCartera: sum(conSaldo, (c) => c.saldo),
+    porCobrarVencido: sum(morosos, (c) => c.saldo),
+    clientesConSaldo: conSaldo.length, morosos: morosos.length,
+  };
+}
+
+/**
+ * Cobranza segmentada POR LOTE (mismos buckets que `cobranza()`, pero cada lote
+ * con su propio saldo/atraso, sin agregar por cliente). Para la vista de Morosos.
+ */
+export function cobranzaPorLote() {
+  const conSaldo = lotesCliente().filter((c) => c.saldo > 0.01);
   const segmentos = AGING_BUCKETS.map((b) => {
     const lista = conSaldo.filter((c) => c.bucket.key === b.key);
     return { ...b, clientes: lista, total: sum(lista, (c) => c.saldo) };
@@ -503,6 +664,79 @@ export async function cancelarVentaLote(clave) {
     comisionMonto: 0, comisionPct: 0,
   });
   return { action: 'liberado', numero: l.numero };
+}
+
+// ---------- Revisión de Sobres: rejilla mensual + avance ----------
+/**
+ * Rejilla mensual para capturar/corregir un sobre: una fila por mes desde el
+ * mes siguiente al enganche hasta el corte (asOf). Pre-llena con el sobre ya
+ * revisado si existe; si no, con el itemizado del Excel agrupado por mes.
+ * @param {string} loteClave clave de lote (p.ej. "M38-L01")
+ */
+export function gridSobre(loteClave) {
+  const lk = keyOf(loteClave);
+  const l = lotesEtapa().find((x) => keyOf(x.numero) === lk);
+  if (!l) return null;
+  const mens = toNum(l.mensualidad);
+  const enganche = toNum(l.enganche);
+  const precio = toNum(l.precio);
+  const ctr = contratos.all().find((c) => keyOf(c.lote) === lk) || null;
+  const histLote = pagosHist().filter((p) => keyOf(p.lote) === lk);
+  const fechaEnganche = histLote.filter((p) => ci(p.categoria, 'Enganche')).map((p) => p.fecha).sort()[0]
+    || l.fechaVenta || (ctr && ctr.fechaFirma) || '';
+  const corte = asof();
+  const startMes = (fechaEnganche || corte).slice(0, 7);
+  const endMes = corte.slice(0, 7);
+  const existente = sobreDe(lk);
+
+  // Pre-llenado: del sobre revisado si existe; si no, del Excel (abonos por mes).
+  const prefill = new Map();
+  if (existente) {
+    for (const m of existente.meses || []) prefill.set(m.periodo, { monto: toNum(m.monto), recibo: m.recibo || '', nota: m.nota || '' });
+  } else {
+    for (const p of histLote) {
+      if (ci(p.categoria, 'Enganche')) continue;
+      const per = (p.fecha || '').slice(0, 7);
+      const cur = prefill.get(per) || { monto: 0, recibo: '', nota: '' };
+      cur.monto += toNum(p.monto);
+      prefill.set(per, cur);
+    }
+  }
+
+  // La rejilla arranca el mes siguiente al enganche, PERO si hubiera un abono
+  // anterior a eso (mismo mes del enganche, etc.) se incluye para no dejar fuera
+  // ningún pago del itemizado (que el pre-llenado cuadre con el total).
+  const periodos = [];
+  const d = new Date(startMes + '-01T00:00:00');
+  d.setMonth(d.getMonth() + 1);
+  const primerPrefill = [...prefill.keys()].sort()[0];
+  if (primerPrefill && primerPrefill < d.toISOString().slice(0, 7)) d.setTime(new Date(primerPrefill + '-01T00:00:00').getTime());
+  const fin = new Date(endMes + '-01T00:00:00');
+  while (d <= fin) {
+    const per = d.toISOString().slice(0, 7);
+    const pf = prefill.get(per) || { monto: 0, recibo: '', nota: '' };
+    periodos.push({ periodo: per, esperado: mens, monto: pf.monto, recibo: pf.recibo, nota: pf.nota });
+    d.setMonth(d.getMonth() + 1);
+  }
+
+  return {
+    lote: l.numero, cliente: (l.cliente || '').trim(),
+    etapa: l.etapa || _etapa,
+    mensualidad: mens, precio, enganche, fechaEnganche,
+    inicio: startMes, corte,
+    totalConciliado: toNum(l.pago),                       // total que confía hoy el sistema
+    abonadoConciliado: Math.max(0, toNum(l.pago) - enganche),
+    periodos, sobre: existente || null,
+    revisado: !!existente,
+  };
+}
+
+/** Avance de la revisión de sobres (para el tablero del módulo). */
+export function revisionSobresResumen() {
+  const vend = lotesEtapa().filter((l) => ci(l.estado, 'Vendido') && l.cliente);
+  const sobs = idxSobres();
+  const revisados = vend.filter((l) => sobs.has(keyOf(l.numero))).length;
+  return { total: vend.length, revisados, pendientes: vend.length - revisados };
 }
 
 export { ci, keyOf };

@@ -38,7 +38,7 @@ export function render(container) {
     <div class="flex items-center justify-between flex-wrap gap-3">
       ${cardTitle('skvoLogo', `SKVO — ${mesLargo(mes)}`, 'bg-amber-500')}
       <div class="flex items-center gap-2 flex-wrap">
-        ${monthNav(mes)}
+        <span class="text-sm font-medium">${esc(mesLargo(mes))}</span>
         <button data-hoy class="px-3 py-1 rounded-full text-xs border ${soloHoy ? 'bg-brand text-white border-brand' : 'border-gray-300 dark:border-gray-600'}">Solo hoy</button>
       </div>
     </div>
@@ -191,7 +191,7 @@ export function render(container) {
   function wire() {
     container.querySelectorAll('[data-sub]').forEach((b) =>
       b.addEventListener('click', () => { sub = b.dataset.sub; editId = null; draw(); }));
-    wireMonthNav(container, mes, (m) => { mes = m; draw(); });
+    if (!soloCaptura) wireMonthNav(container, mes, (m) => { mes = m; draw(); });
     container.querySelector('[data-hoy]')?.addEventListener('click', () => { soloHoy = !soloHoy; draw(); });
 
     const form = container.querySelector('#skvo-form');

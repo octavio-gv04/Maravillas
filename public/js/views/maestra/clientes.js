@@ -71,7 +71,12 @@ export function render(container) {
 
     const redraw = () => draw();
     const qi = container.querySelector('#c-q');
-    qi.addEventListener('input', (e) => { q = e.target.value; draw(); container.querySelector('#c-q').focus(); });
+    qi.addEventListener('input', (e) => {
+      q = e.target.value;
+      draw();
+      const s = container.querySelector('#c-q');
+      s.focus(); s.setSelectionRange(s.value.length, s.value.length); // cursor al final (evita texto invertido)
+    });
     container.querySelector('#c-estado').addEventListener('change', (e) => { fEstado = e.target.value; redraw(); });
     container.querySelector('#c-vend').addEventListener('change', (e) => { fVendedor = e.target.value; redraw(); });
     container.querySelectorAll('[data-k]').forEach((tr) =>

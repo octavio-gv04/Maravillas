@@ -27,6 +27,7 @@ import { render as skvo } from './views/skvo.js';
 import { render as conciliacion } from './views/conciliacion.js';
 import { render as historial } from './views/historial.js';
 import { render as morosos } from './views/captura/morosos.js';
+import { render as sobres } from './views/captura/sobres.js';
 
 // --- Vistas de la Base de Datos Maestra (Etapa 3) ---
 import { render as mDashboard } from './views/maestra/dashboard.js';
@@ -58,6 +59,10 @@ route('morosos', { title: 'Morosos', icon: '💳', render: morosos, group: 'capt
 
 route('m/dashboard', { title: 'Dashboard', icon: '🏠', render: mDashboard, group: 'maestra' });
 route('m/clientes', { title: 'Clientes', icon: '👥', render: mClientes, group: 'maestra' });
+// Revisión de Sobres: conciliación mes a mes del sobre físico (corrige historial
+// y recalcula atraso). Disponible para ambos roles (captura y maestra/admin).
+// Registrada tras Clientes para que aparezca debajo de Clientes en Base de Datos.
+route('sobres', { title: 'Sobre', icon: '✉️', render: sobres, groups: ['captura', 'maestra'] });
 route('m/lotes', { title: 'Lotes', icon: '🏠', render: mLotes, group: 'maestra' });
 route('m/contratos', { title: 'Contratos', icon: '📄', render: mContratos, group: 'maestra' });
 route('m/estado-cuenta', { title: 'Estado de cuenta', icon: '🧾', render: mEstadoCuenta, group: 'maestra' });

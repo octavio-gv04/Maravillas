@@ -8,7 +8,7 @@ import { flujoEtapa } from '../calc.js';
 import { subscribe } from '../store.js';
 import { ZONAS } from '../config.js';
 import { money, esc } from '../utils.js';
-import { card, badge, cardTitle } from '../ui.js';
+import { card, badge, cardTitle, btnGhost } from '../ui.js';
 import { getMes, onMes, mesDesde, mesHasta } from '../periodo.js';
 
 export function render(container) {
@@ -32,7 +32,7 @@ export function render(container) {
       <div class="flex items-center gap-3 mb-4 flex-wrap text-sm">
         <label class="text-gray-500">Desde</label><input id="f-desde" type="date" lang="es-MX" class="field !w-40" value="${desde}" />
         <label class="text-gray-500">Hasta</label><input id="f-hasta" type="date" lang="es-MX" class="field !w-40" value="${hasta}" />
-        <button id="f-clear" class="text-brand underline">Todo el periodo</button>
+        ${btnGhost('Todo el periodo', 'id="f-clear"')}
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">

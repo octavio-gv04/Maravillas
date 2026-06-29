@@ -14,10 +14,18 @@ import { svgIcon } from '../icons.js';
 import { can, isCapturista } from '../auth.js';
 import { catalogoCaptura, keyOf, infoLoteVenta, cancelarVentaLote } from '../maestra.js';
 import { imprimirComprobante } from '../recibo.js';
+import { queryParam } from '../router.js';
 
 export function render(container) {
   let editId = null;
   let modo = 'gasto';   // 'gasto' | 'devolucion'
+  // Llegada desde Morosos (#/gastos?devolucion=LOTE): precargar una devolución.
+  let devLote = (queryParam('devolucion') || '').trim();
+  let devApplied = false;
+  if (devLote) {
+    modo = 'devolucion';
+    history.replaceState(null, '', '#/gastos'); // evita re-aplicar al redibujar/recargar
+  }
   let query = '';
   let fEtapa = 'Todas';
   let page = 0;        // página de la tabla (100 por página)
@@ -308,6 +316,14 @@ export function render(container) {
       b.addEventListener('click', () => { if (modo === b.dataset.modo && !editId) return; modo = b.dataset.modo; editId = null; redrawForm(); }));
 
     container.querySelector('#gas-cancel')?.addEventListener('click', () => { editId = null; redrawForm(); });
+
+    // Precarga de Devolución desde Morosos (una sola vez): rellena lote + cliente + banner.
+    if (devLote && !devApplied && modo === 'devolucion' && !editId && els.lote) {
+      els.lote.value = devLote;
+      els.lote.dispatchEvent(new Event('change'));
+      devApplied = true;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   }
 
   function wireTable() {

@@ -15,9 +15,10 @@
 import { resumenDia } from '../calc.js';
 import { cortes, subscribe } from '../store.js';
 import { RECIBIO_CORTE } from '../config.js';
-import { money, todayISO, toNum, esc, toast } from '../utils.js';
+import { money, todayISO, toNum, esc, toast, mesLargo } from '../utils.js';
 import { card, cardTitle, btn, monthNav, wireMonthNav } from '../ui.js';
 import { getMes, setMes, onMes } from '../periodo.js';
+import { isCapturista } from '../auth.js';
 
 function etiquetaFecha(iso) {
   const [y, m, d] = iso.split('-').map(Number);
@@ -81,8 +82,10 @@ export function render(container) {
     cell.className = cell.className.replace(/text-(green|red|amber|gray)-[0-9]+/g, '') + ' ' + info.cls;
   };
 
+  // Captura Diaria (Hillary): el corte se limita al mes actual, sin navegar a otros.
+  const soloActual = isCapturista();
   const draw = () => {
-    const mes = getMes(); // periodo compartido del Control Mensual
+    const mes = soloActual ? todayISO().slice(0, 7) : getMes(); // periodo compartido del Control Mensual
     const dias = diasDelMes(mes);
     const filas = dias.map((iso) => {
       const esperado = resumenDia(iso).efectivoEsperado;
@@ -189,7 +192,7 @@ export function render(container) {
         <h1 class="text-lg font-bold">Efectivo, entrega y nota</h1>
         <span class="text-sm text-gray-400">·</span>
         <label class="text-sm text-gray-500">Mes:</label>
-        ${monthNav(mes)}
+        ${soloActual ? `<span class="text-sm font-medium">${esc(mesLargo(mes))}</span>` : monthNav(mes)}
       </div>
       <div class="space-y-4">${hoyCard}${tabla}</div>
       <p class="text-xs text-gray-500 mt-3">El <strong>Corte del Flujo</strong> es el efectivo esperado del día (ingresos − gastos en efectivo, incluido SKVO) y se calcula solo. Captura el <strong>Contado</strong> físico: si no coincide, se marca <strong>Faltante</strong> o <strong>Sobrante</strong>. La <strong>recolección</strong> (quién y cuándo) puede registrarse después; los días sin recoger quedan <strong>Pendiente</strong>.</p>
@@ -221,7 +224,7 @@ export function render(container) {
       tr.querySelector('[data-field="observaciones"]').addEventListener('change', () => saveCorte(tr.dataset.fecha, tr));
     });
 
-    wireMonthNav(container, mes, (m) => setMes(m));
+    if (!soloActual) wireMonthNav(container, mes, (m) => setMes(m));
   };
 
   draw();

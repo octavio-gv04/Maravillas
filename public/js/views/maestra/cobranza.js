@@ -7,7 +7,7 @@
 import { subscribe } from '../../store.js';
 import { cobranza, etapaActiva } from '../../maestra.js';
 import { money, esc, prettyDate } from '../../utils.js';
-import { card, badge, empty, sectionHead } from '../../ui.js';
+import { card, badge, empty, sectionHead, btnGhost } from '../../ui.js';
 import { navigate } from '../../router.js';
 
 export function render(container) {
@@ -37,7 +37,7 @@ export function render(container) {
       ${list.length ? card(`
         <div class="flex items-center justify-between mb-3">
           <h3 class="font-semibold">Clientes con atraso ${fSeg ? `· ${esc(cob.segmentos.find((s) => s.key === fSeg)?.label)}` : ''}</h3>
-          ${fSeg ? '<button id="clear" class="text-sm text-brand underline">Ver todos</button>' : ''}
+          ${fSeg ? btnGhost('Ver todos', 'id="clear"') : ''}
         </div>
         <div class="table-wrap"><table class="w-full text-sm">
           <thead class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-700">
