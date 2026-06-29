@@ -22,9 +22,16 @@ export function route(path, def) {
 export const setHome = (path) => { home = path; };
 export const getHome = () => home;
 
+let guard = null; // (path, def) => boolean — true si la ruta es accesible ahora
+/** Define un guard de acceso (rol/espacio). Una ruta vetada redirige al home. */
+export const setGuard = (fn) => { guard = fn; };
+
+/** Espacios a los que pertenece una ruta (admite `groups:[...]` o `group`). */
+const defGroups = (def) => def.groups || (def.group ? [def.group] : []);
+
 /** Lista de rutas, opcionalmente filtrada por grupo (para el menu lateral). */
 export const getRoutes = (group) =>
-  [...routes.entries()].filter(([, def]) => !group || def.group === group);
+  [...routes.entries()].filter(([, def]) => !group || defGroups(def).includes(group));
 
 /** Ruta actual (sin el #/ ni la query). Cae al inicio del espacio activo. */
 export const currentPath = () =>
@@ -48,7 +55,16 @@ export const navigate = (path, params) => {
  */
 export function render(container, onChange) {
   const path = currentPath();
-  const def = routes.get(path) || routes.get(home);
+  let def = routes.get(path);
+
+  // Guard de acceso: si la ruta existe pero no está permitida en el espacio/rol
+  // actual, redirige al home (que siempre es accesible). Evita que un usuario
+  // limitado abra una vista escribiendo el hash a mano (#/flujo, etc.).
+  if (def && guard && path !== home && !guard(path, def)) {
+    navigate(home);
+    return;
+  }
+  if (!def) def = routes.get(home);
 
   if (typeof current === 'function') { try { current(); } catch {} }
 

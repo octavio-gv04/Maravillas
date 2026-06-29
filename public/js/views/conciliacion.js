@@ -7,13 +7,13 @@
 import { conciliacionMensual } from '../calc.js';
 import { subscribe } from '../store.js';
 import { ZONAS } from '../config.js';
-import { money, esc, todayISO } from '../utils.js';
+import { money, esc } from '../utils.js';
 import { card, badge, cardTitle, monthNav, wireMonthNav } from '../ui.js';
+import { getMes, setMes, onMes } from '../periodo.js';
 
 export function render(container) {
-  let mes = todayISO().slice(0, 7); // 'YYYY-MM'
-
   const draw = () => {
+    const mes = getMes(); // periodo compartido del Control Mensual
     const c = conciliacionMensual(mes, ZONAS);
 
     const th = (t, cls = '') => `<th class="py-2 px-3 ${cls}">${esc(t)}</th>`;
@@ -98,9 +98,10 @@ export function render(container) {
       </div>
     `;
 
-    wireMonthNav(container, mes, (m) => { mes = m; draw(); });
+    wireMonthNav(container, mes, (m) => setMes(m));
   };
 
   draw();
-  return subscribe(draw);
+  const unsubs = [subscribe(draw), onMes(draw)];
+  return () => unsubs.forEach((u) => u());
 }

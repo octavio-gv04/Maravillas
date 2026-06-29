@@ -182,18 +182,32 @@ export const DEMO_USERS = [
  * ==========================================================================*/
 
 // Espacios de trabajo seleccionables al iniciar sesión.
+//
+// `roles` define quién puede ENTRAR a cada espacio. La capturista (Hillary)
+// solo ve "Captura Diaria"; los administradores ven "Control Mensual" + la
+// Base de Datos. Si un usuario tiene un único espacio permitido se entra
+// directo, sin mostrar el selector (ver app.js → enterAfterLogin()).
 export const WORKSPACES = {
+  captura: {
+    key: 'captura', group: 'captura',
+    label: 'Captura Diaria', icon: '🧾',
+    desc: 'Captura del día: ingresos, gastos, recibos y corte de caja.',
+    home: 'ingresos',
+    roles: ['capturista'],
+  },
   diario: {
     key: 'diario', group: 'diario',
-    label: 'Control Diario', icon: '💰',
-    desc: 'Captura diaria: ingresos, gastos, recibos, corte y conciliación.',
+    label: 'Control Mensual', icon: '💰',
+    desc: 'Revisión y auditoría mensual: ingresos, gastos, flujo, corte y conciliación.',
     home: 'dashboard',
+    roles: ['admin', 'supervisor'],
   },
   maestra: {
     key: 'maestra', group: 'maestra',
     label: 'Base de Datos', icon: '🏗️',
     desc: 'Administración de Etapa 3: clientes, lotes, contratos, estado de cuenta y cobranza.',
     home: 'm/dashboard',
+    roles: ['admin', 'supervisor'],
   },
 };
 export const STORAGE_WORKSPACE = 'af.v2.workspace';

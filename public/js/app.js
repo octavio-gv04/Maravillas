@@ -13,7 +13,8 @@ import { STORAGE_KEYS, WORKSPACES, STORAGE_WORKSPACE } from './config.js';
 import { $, prettyDate, todayISO, esc, localizeFormValidation, installMoneyInputs } from './utils.js';
 import { isLogged, login, logout, getSession } from './auth.js';
 import { init as initStore, onStatus } from './store.js';
-import { route, startRouter, navigate, getRoutes, setHome } from './router.js';
+import { route, startRouter, navigate, getRoutes, setHome, setGuard } from './router.js';
+import { getMes, setMes, onMes } from './periodo.js';
 import { iconChip, svgIcon, NAV_ICONS, WORKSPACE_ICONS } from './icons.js';
 
 // --- Vistas del Sistema Diario ---
@@ -25,6 +26,7 @@ import { render as corte } from './views/corte.js';
 import { render as skvo } from './views/skvo.js';
 import { render as conciliacion } from './views/conciliacion.js';
 import { render as historial } from './views/historial.js';
+import { render as morosos } from './views/captura/morosos.js';
 
 // --- Vistas de la Base de Datos Maestra (Etapa 3) ---
 import { render as mDashboard } from './views/maestra/dashboard.js';
@@ -39,14 +41,20 @@ import { render as mSync } from './views/maestra/sync.js';
 import { render as mAuditoria } from './views/maestra/auditoria.js';
 
 // ---------- Registro de rutas (group define a qué espacio pertenecen) ----------
+// `groups` (en plural) registra una ruta en VARIOS espacios. Las vistas de
+// captura (Ingresos, Gastos, Corte, SKVO) se comparten entre "Captura Diaria"
+// (capturista) y "Control Mensual" (admin); el resto es solo del admin.
 route('dashboard', { title: 'Dashboard', icon: '🏠', render: dashboard, group: 'diario' });
-route('ingresos', { title: 'Ingresos', icon: '📈', render: ingresos, group: 'diario' });
-route('gastos', { title: 'Gastos', icon: '📉', render: gastos, group: 'diario' });
+route('ingresos', { title: 'Ingresos', icon: '📈', render: ingresos, groups: ['diario', 'captura'] });
+route('gastos', { title: 'Gastos', icon: '📉', render: gastos, groups: ['diario', 'captura'] });
 route('flujo', { title: 'Flujo de efectivo', icon: '💵', render: flujo, group: 'diario' });
-route('corte', { title: 'Corte efectivo', icon: '🧮', render: corte, group: 'diario' });
-route('skvo', { title: 'SKVO', icon: '⚙️', render: skvo, group: 'diario' });
+route('corte', { title: 'Corte efectivo', icon: '🧮', render: corte, groups: ['diario', 'captura'] });
+route('skvo', { title: 'SKVO', icon: '⚙️', render: skvo, groups: ['diario', 'captura'] });
 route('conciliacion', { title: 'Conciliación', icon: '🔗', render: conciliacion, group: 'diario' });
 route('historial', { title: 'Historial', icon: '🕑', render: historial, group: 'diario' });
+// Morosos: seguimiento de cobranza acotado, exclusivo de Captura Diaria
+// (el admin usa la Cobranza completa en la Base de Datos Maestra).
+route('morosos', { title: 'Morosos', icon: '💳', render: morosos, group: 'captura' });
 
 route('m/dashboard', { title: 'Dashboard', icon: '🏠', render: mDashboard, group: 'maestra' });
 route('m/clientes', { title: 'Clientes', icon: '👥', render: mClientes, group: 'maestra' });
@@ -61,6 +69,21 @@ route('m/auditoria', { title: 'Auditoría', icon: '🛡️', render: mAuditoria,
 
 let started = false;       // store + router inicializados una sola vez
 let currentGroup = 'diario';
+
+// ---------- Espacios permitidos según el rol de la sesión ----------
+// Un espacio sin `roles` lo ve cualquiera; con `roles`, solo esos roles.
+function allowedWorkspaces() {
+  const role = getSession()?.role;
+  return Object.values(WORKSPACES).filter((ws) => !ws.roles || ws.roles.includes(role));
+}
+
+// Tras iniciar sesión: si solo hay un espacio permitido se entra directo
+// (caso capturista → Captura Diaria); si hay varios, se muestra el selector.
+function enterAfterLogin() {
+  const allowed = allowedWorkspaces();
+  if (allowed.length === 1) bootApp(allowed[0].key);
+  else showWorkspaceChooser();
+}
 
 // ---------- Tema claro/oscuro ----------
 function applyTheme(theme) {
@@ -112,7 +135,7 @@ function showLogin() {
     const btn = f.querySelector('button[type=submit]');
     btn.disabled = true; btn.textContent = 'Entrando…';
     try {
-      if (await login(f.user.value.trim(), f.pass.value)) showWorkspaceChooser();
+      if (await login(f.user.value.trim(), f.pass.value)) enterAfterLogin();
       else $('#login-err').classList.remove('hidden');
     } catch {
       $('#login-err').textContent = 'No se pudo conectar con el servidor';
@@ -144,8 +167,7 @@ function showWorkspaceChooser() {
         <p class="text-gray-500">Elige el sistema que quieres abrir</p>
       </div>
       <div class="grid sm:grid-cols-2 gap-4">
-        ${cardWs(WORKSPACES.diario)}
-        ${cardWs(WORKSPACES.maestra)}
+        ${allowedWorkspaces().map(cardWs).join('')}
       </div>
       <p class="text-center text-xs text-gray-400 mt-6">Podrás cambiar de sistema en cualquier momento desde el menú lateral.</p>
     </div>`;
@@ -176,7 +198,10 @@ function buildNav(group) {
        </div>` : '';
 
   // Iconos de los botones del pie (estilo chip, igual que el menú).
-  $('#switch-ws').innerHTML = `${iconChip('refresh', 'bg-sky-500')}<span>Cambiar sistema</span>`;
+  // "Cambiar sistema" solo tiene sentido si el rol puede entrar a más de un espacio.
+  const switchBtn = $('#switch-ws');
+  switchBtn.style.display = allowedWorkspaces().length > 1 ? '' : 'none';
+  switchBtn.innerHTML = `${iconChip('refresh', 'bg-sky-500')}<span>Cambiar sistema</span>`;
   $('#logout-btn').innerHTML = `${iconChip('logout', 'bg-rose-500')}<span>Cerrar sesión</span>`;
 }
 
@@ -220,6 +245,14 @@ function applyWorkspace(wsKey) {
   $('#brand-name').textContent = ws.label;
   setHome(ws.home);
   buildNav(ws.group);
+  // El selector de mes global solo aplica al Control Mensual (revisión/auditoría).
+  const pbar = $('#periodo-bar');
+  if (pbar) {
+    const show = ws.group === 'diario';
+    pbar.classList.toggle('hidden', !show);
+    pbar.classList.toggle('flex', show);
+    if (show) $('#periodo-mes').value = getMes();
+  }
   navigate(ws.home);
 }
 
@@ -248,6 +281,22 @@ function wireGlobal() {
   localizeFormValidation(); // globos de validación nativos en español
   installMoneyInputs();     // campos de dinero: muestran $1,234.00, editan número plano
 
+  // Guard del router: una ruta solo es accesible si pertenece al espacio activo.
+  // Así un capturista en "Captura Diaria" no puede abrir #/flujo, #/dashboard, etc.
+  setGuard((path, def) => {
+    const groups = def.groups || (def.group ? [def.group] : []);
+    return groups.includes(currentGroup);
+  });
+
+  // Selector de mes global (Control Mensual): mantiene sincronizado el input con
+  // el periodo compartido, lo cambie quien lo cambie (input o navegador de mes).
+  const periodoInput = $('#periodo-mes');
+  if (periodoInput) {
+    periodoInput.value = getMes();
+    periodoInput.addEventListener('change', () => setMes(periodoInput.value || getMes()));
+    onMes((m) => { if (periodoInput.value !== m) periodoInput.value = m; });
+  }
+
   $('#theme-toggle').addEventListener('click', () =>
     applyTheme(document.documentElement.classList.contains('dark') ? 'light' : 'dark'));
 
@@ -267,10 +316,12 @@ function wireGlobal() {
 initTheme();
 wireGlobal();
 if (isLogged()) {
-  // Sesión viva: restaura el último espacio usado (o pide elegir si no hay).
+  // Sesión viva: restaura el último espacio usado SOLO si el rol aún lo permite;
+  // si no, decide según los espacios permitidos (directo o selector).
   const last = localStorage.getItem(STORAGE_WORKSPACE);
-  if (last && WORKSPACES[last]) bootApp(last);
-  else showWorkspaceChooser();
+  const ok = last && WORKSPACES[last] && allowedWorkspaces().some((w) => w.key === last);
+  if (ok) bootApp(last);
+  else enterAfterLogin();
 } else {
   showLogin();
 }

@@ -88,6 +88,7 @@ export const NAV_ICONS = {
   skvo:             { name: 'skvoLogo',    color: 'bg-amber-500' },
   conciliacion:     { name: 'link',        color: 'bg-violet-500' },
   historial:        { name: 'clock',       color: 'bg-orange-500' },
+  morosos:          { name: 'creditCard',  color: 'bg-amber-500' },
   'm/dashboard':    { name: 'home',        color: 'bg-blue-500' },
   'm/clientes':     { name: 'users',       color: 'bg-sky-500' },
   'm/lotes':        { name: 'grid',        color: 'bg-green-500' },
@@ -102,6 +103,7 @@ export const NAV_ICONS = {
 
 /** Icono + color de cada espacio de trabajo (por `key`). */
 export const WORKSPACE_ICONS = {
+  captura: { name: 'receipt',  color: 'bg-indigo-500' },
   diario:  { name: 'wallet',   color: 'bg-green-500' },
   maestra: { name: 'building', color: 'bg-amber-500' },
 };

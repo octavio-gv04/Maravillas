@@ -67,6 +67,10 @@
       <header class="h-16 sticky top-0 z-20 bg-white/90 dark:bg-gray-800/90 backdrop-blur border-b border-gray-200 dark:border-gray-700 flex items-center gap-3 px-4">
         <button id="sidebar-toggle" class="md:hidden text-2xl" aria-label="Menú">☰</button>
         <h1 id="page-title" class="font-semibold text-lg flex-1">Dashboard</h1>
+        <div id="periodo-bar" class="hidden items-center gap-2 text-sm">
+          <label for="periodo-mes" class="text-gray-500 hidden sm:block">Mes</label>
+          <input id="periodo-mes" type="month" lang="es-MX" class="field !w-40 !py-1.5" />
+        </div>
         <span id="conn-status" class="text-xs text-gray-500 hidden sm:flex items-center gap-1.5"></span>
         <span id="today-label" class="text-sm text-gray-500 hidden md:block"></span>
         <button id="theme-toggle" class="text-xl px-2 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700" aria-label="Tema">🌙</button>

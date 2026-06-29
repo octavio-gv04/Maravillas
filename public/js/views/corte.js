@@ -17,6 +17,7 @@ import { cortes, subscribe } from '../store.js';
 import { RECIBIO_CORTE } from '../config.js';
 import { money, todayISO, toNum, esc, toast } from '../utils.js';
 import { card, cardTitle, btn, monthNav, wireMonthNav } from '../ui.js';
+import { getMes, setMes, onMes } from '../periodo.js';
 
 function etiquetaFecha(iso) {
   const [y, m, d] = iso.split('-').map(Number);
@@ -38,7 +39,6 @@ function difInfo(esperado, contado) {
 const contadoDe = (c) => (c && c.contado != null && c.contado !== '' ? toNum(c.contado) : null);
 
 export function render(container) {
-  let mes = todayISO().slice(0, 7);
   const opcionesRecibio = ['', ...RECIBIO_CORTE];
 
   // Lee los campos (data-field) dentro de un contenedor (tarjeta de hoy o fila).
@@ -82,6 +82,7 @@ export function render(container) {
   };
 
   const draw = () => {
+    const mes = getMes(); // periodo compartido del Control Mensual
     const dias = diasDelMes(mes);
     const filas = dias.map((iso) => {
       const esperado = resumenDia(iso).efectivoEsperado;
@@ -220,9 +221,10 @@ export function render(container) {
       tr.querySelector('[data-field="observaciones"]').addEventListener('change', () => saveCorte(tr.dataset.fecha, tr));
     });
 
-    wireMonthNav(container, mes, (m) => { mes = m; draw(); });
+    wireMonthNav(container, mes, (m) => setMes(m));
   };
 
   draw();
-  return subscribe(draw);
+  const unsubs = [subscribe(draw), onMes(draw)];
+  return () => unsubs.forEach((u) => u());
 }

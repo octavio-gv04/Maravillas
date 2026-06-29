@@ -44,3 +44,9 @@ export function can(permiso) {
   const s = getSession();
   return s ? (ROLES[s.role]?.can.includes(permiso) ?? false) : false;
 }
+
+/** Rol de la sesión activa (o null). */
+export const role = () => getSession()?.role || null;
+
+/** ¿La sesión es de captura diaria (Hillary)? Vista operativa sin P&L. */
+export const isCapturista = () => role() === 'capturista';

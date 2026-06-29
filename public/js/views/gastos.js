@@ -11,7 +11,7 @@ import { CAT_GASTOS, METODOS_GASTO, ETAPAS_GASTO, VENDEDORES, ZONAS } from '../c
 import { money, prettyDate, todayISO, esc, toNum, toast, confirmAction, formatMoneyIn } from '../utils.js';
 import { card, btn, btnGhost, field, select, sectionHead, empty, cardTitle, actionBtn, monthNav, wireMonthNav } from '../ui.js';
 import { svgIcon } from '../icons.js';
-import { can } from '../auth.js';
+import { can, isCapturista } from '../auth.js';
 import { catalogoCaptura, keyOf, infoLoteVenta, cancelarVentaLote } from '../maestra.js';
 import { imprimirComprobante } from '../recibo.js';
 
@@ -23,6 +23,9 @@ export function render(container) {
   let page = 0;        // página de la tabla (100 por página)
   let _pages = 1;      // total de páginas (lo fija tableCard)
   let mes = todayISO().slice(0, 7);  // mes de captura mostrado en la tabla
+  // Vista de captura (Hillary): sin totales del negocio y enfocada en HOY.
+  const soloCaptura = isCapturista();
+  let soloHoy = soloCaptura;         // capturista arranca viendo solo el día
 
   const modoTabs = () => `
     <div class="flex gap-2 mb-4">
@@ -90,6 +93,7 @@ export function render(container) {
         [x.concepto, x.categoria, x.recibe, x.beneficiario, x.lote]
           .some((f) => String(f || '').toLowerCase().includes(q)));
     }
+    if (soloHoy) list = list.filter((x) => (x.fecha || '') === todayISO());
     const total = list.reduce((a, x) => a + toNum(x.monto), 0);
     const PER = 100;
     _pages = Math.max(1, Math.ceil(list.length / PER));
@@ -102,10 +106,11 @@ export function render(container) {
       `<button data-etapa="${esc(e)}" class="px-3 py-1 rounded-full text-xs border ${e === fEtapa ? 'bg-brand text-white border-brand' : 'border-gray-300 dark:border-gray-600'}">${esc(e)}</button>`).join('');
 
     return card(`
-      ${sectionHead(`Gastos (${list.length}) · ${money(total)}`,
+      ${sectionHead(`Gastos (${list.length})${soloCaptura ? '' : ` · ${money(total)}`}`,
         `<input id="gas-search" class="field !w-56" placeholder="Buscar..." value="${esc(query)}" />`, 'trendingDown', 'bg-red-500')}
       <div class="flex items-center gap-3 mb-3 flex-wrap">
         ${monthNav(mes)}
+        ${soloCaptura ? `<button data-hoy class="px-3 py-1 rounded-full text-xs border ${soloHoy ? 'bg-brand text-white border-brand' : 'border-gray-300 dark:border-gray-600'}">Solo hoy</button>` : ''}
         <div class="flex gap-2 flex-wrap">${etapaTabs}</div>
       </div>
       ${list.length ? `
@@ -136,12 +141,12 @@ export function render(container) {
                 </td>
               </tr>`).join('')}
           </tbody>
-          <tfoot>
+          ${soloCaptura ? '' : `<tfoot>
             <tr class="font-semibold border-t-2 border-gray-200 dark:border-gray-700">
               <td class="py-2" colspan="8">Total filtrado</td>
               <td class="text-right text-red-600">${money(total)}</td><td></td>
             </tr>
-          </tfoot>
+          </tfoot>`}
         </table>
       </div>
       ${_pages > 1 ? `<div class="flex items-center justify-between gap-2 mt-3 text-sm">
@@ -330,6 +335,8 @@ export function render(container) {
       }));
 
     wireMonthNav(container, mes, (m) => { mes = m; page = 0; redrawTable(); });
+
+    container.querySelector('[data-hoy]')?.addEventListener('click', () => { soloHoy = !soloHoy; page = 0; redrawTable(); });
 
     container.querySelector('[data-pg="prev"]')?.addEventListener('click', () => { if (page > 0) { page--; redrawTable(); } });
     container.querySelector('[data-pg="next"]')?.addEventListener('click', () => { if (page < _pages - 1) { page++; redrawTable(); } });

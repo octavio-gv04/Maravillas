@@ -10,6 +10,7 @@ import { ZONAS } from '../config.js';
 import { money, prettyDate, todayISO, esc } from '../utils.js';
 import { card, empty, cardTitle } from '../ui.js';
 import { svgIcon } from '../icons.js';
+import { getMes, setMes, onMes, esMesActual } from '../periodo.js';
 
 const ci = (a, b) => String(a ?? '').trim().toLowerCase() === String(b ?? '').trim().toLowerCase();
 
@@ -21,7 +22,9 @@ const ICONS = {
 
 export function render(container) {
   let tab = 'General';
-  let fecha = todayISO();   // día seleccionado (KPIs y detalle del día)
+  // Día seleccionado (KPIs y detalle). Sigue el mes compartido del Control Mensual:
+  // si es el mes en curso arranca en HOY; si es un mes pasado, en su día 1.
+  let fecha = esMesActual() ? todayISO() : `${getMes()}-01`;
   let charts = [];
   const tabs = ['General', ...ZONAS, 'SKVO'];
 
@@ -197,10 +200,15 @@ export function render(container) {
 
     container.querySelectorAll('[data-tab]').forEach((b) =>
       b.addEventListener('click', () => { tab = b.dataset.tab; draw(); }));
-    container.querySelector('#dash-date').addEventListener('change', (e) => {
-      fecha = e.target.value || todayISO(); draw();
-    });
-    container.querySelector('#dash-hoy').addEventListener('click', () => { fecha = todayISO(); draw(); });
+    // Al cambiar el día: si cambia de mes, sincroniza el periodo global (y el resto
+    // de vistas vía onMes → draw); si es el mismo mes, basta con redibujar.
+    const aplicarFecha = (f) => {
+      fecha = f || todayISO();
+      if (fecha.slice(0, 7) !== getMes()) setMes(fecha.slice(0, 7));
+      else draw();
+    };
+    container.querySelector('#dash-date').addEventListener('change', (e) => aplicarFecha(e.target.value));
+    container.querySelector('#dash-hoy').addEventListener('click', () => aplicarFecha(todayISO()));
   };
 
   function chartColors() {
@@ -259,7 +267,15 @@ export function render(container) {
     }));
   }
 
+  // Cambio del mes global: lleva el día al mes elegido (conserva el día si ya
+  // estaba en ese mes) y redibuja.
+  const onPeriodo = (m) => {
+    if (fecha.slice(0, 7) !== m) fecha = esMesActual(m) ? todayISO() : `${m}-01`;
+    draw();
+  };
+
   draw();
   const unsub = subscribe(draw);
-  return () => { unsub(); destroyCharts(); };
+  const unsubMes = onMes(onPeriodo);
+  return () => { unsub(); unsubMes(); destroyCharts(); };
 }

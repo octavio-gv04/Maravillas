@@ -17,16 +17,32 @@ import {
 import { money, prettyDate, todayISO, esc, toNum, toast, confirmAction, mesLargo, formatMoneyIn } from '../utils.js';
 import { card, btn, btnGhost, field, select, sectionHead, empty, cardTitle, actionBtn, monthNav, wireMonthNav } from '../ui.js';
 import { svgIcon } from '../icons.js';
-import { can } from '../auth.js';
+import { can, isCapturista } from '../auth.js';
 import { imprimirComprobante } from '../recibo.js';
 
 export function render(container) {
   let sub = 'gastos';   // 'gastos' | 'ingresos'
   let editId = null;
   let mes = todayISO().slice(0, 7);
+  // Vista de captura (Hillary): sin neto del mes ni totales, enfocada en HOY.
+  const soloCaptura = isCapturista();
+  let soloHoy = soloCaptura;
 
   const col = () => (sub === 'gastos' ? skvoGastos : skvoIngresos);
   const enMes = (x) => (x.fecha || '').slice(0, 7) === mes;
+  // Filtro de filas visibles: mes elegido, y solo HOY si el chip está activo.
+  const visible = (x) => enMes(x) && (!soloHoy || (x.fecha || '') === todayISO());
+
+  // Barra mínima para capturista (reemplaza el resumen con neto del mes).
+  const controlsBar = () => card(`
+    <div class="flex items-center justify-between flex-wrap gap-3">
+      ${cardTitle('skvoLogo', `SKVO — ${mesLargo(mes)}`, 'bg-amber-500')}
+      <div class="flex items-center gap-2 flex-wrap">
+        ${monthNav(mes)}
+        <button data-hoy class="px-3 py-1 rounded-full text-xs border ${soloHoy ? 'bg-brand text-white border-brand' : 'border-gray-300 dark:border-gray-600'}">Solo hoy</button>
+      </div>
+    </div>
+  `);
 
   // ---------- Resumen del mes (efectivo SKVO que entra al Corte del Flujo) ----------
   const resumenCard = () => {
@@ -91,11 +107,11 @@ export function render(container) {
 
   // ---------- Tablas ----------
   const tablaGastos = () => {
-    const list = skvoGastos.all().filter(enMes)
+    const list = skvoGastos.all().filter(visible)
       .sort((a, b) => (b.fecha + (b.creado || '')).localeCompare(a.fecha + (a.creado || '')));
     const total = list.reduce((a, x) => a + toNum(x.monto), 0);
     return card(`
-      ${sectionHead(`Gastos SKVO de ${esc(mesLargo(mes))} (${list.length}) · ${money(total)}`)}
+      ${sectionHead(`Gastos SKVO de ${esc(mesLargo(mes))} (${list.length})${soloCaptura ? '' : ` · ${money(total)}`}`)}
       ${list.length ? `
       <div class="table-wrap"><table class="w-full text-sm">
         <thead class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-700">
@@ -117,20 +133,20 @@ export function render(container) {
               ${can('eliminar') ? actionBtn('trash', `data-del="${x.id}"`, 'hover:text-red-600', 'Eliminar') : ''}
             </td></tr>`).join('')}
         </tbody>
-        <tfoot><tr class="font-semibold border-t-2 border-gray-200 dark:border-gray-700">
+        ${soloCaptura ? '' : `<tfoot><tr class="font-semibold border-t-2 border-gray-200 dark:border-gray-700">
           <td class="py-2" colspan="7">Total del mes</td>
           <td class="text-right text-red-600">${money(total)}</td><td></td>
-        </tr></tfoot>
+        </tr></tfoot>`}
       </table></div>` : empty('Sin gastos SKVO este mes')}
     `);
   };
 
   const tablaIngresos = () => {
-    const list = skvoIngresos.all().filter(enMes)
+    const list = skvoIngresos.all().filter(visible)
       .sort((a, b) => (b.fecha + (b.creado || '')).localeCompare(a.fecha + (a.creado || '')));
     const total = list.reduce((a, x) => a + toNum(x.monto), 0);
     return card(`
-      ${sectionHead(`Ingresos SKVO de ${esc(mesLargo(mes))} (${list.length}) · ${money(total)}`)}
+      ${sectionHead(`Ingresos SKVO de ${esc(mesLargo(mes))} (${list.length})${soloCaptura ? '' : ` · ${money(total)}`}`)}
       ${list.length ? `
       <div class="table-wrap"><table class="w-full text-sm">
         <thead class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-700">
@@ -152,10 +168,10 @@ export function render(container) {
               ${can('eliminar') ? actionBtn('trash', `data-del="${x.id}"`, 'hover:text-red-600', 'Eliminar') : ''}
             </td></tr>`).join('')}
         </tbody>
-        <tfoot><tr class="font-semibold border-t-2 border-gray-200 dark:border-gray-700">
+        ${soloCaptura ? '' : `<tfoot><tr class="font-semibold border-t-2 border-gray-200 dark:border-gray-700">
           <td class="py-2" colspan="7">Total del mes</td>
           <td class="text-right text-green-600">${money(total)}</td><td></td>
-        </tr></tfoot>
+        </tr></tfoot>`}
       </table></div>` : empty('Sin ingresos SKVO este mes')}
     `);
   };
@@ -168,7 +184,7 @@ export function render(container) {
     const tabla = sub === 'gastos' ? tablaGastos() : tablaIngresos();
     container.innerHTML = `
       <div class="flex items-center gap-2 mb-4 flex-wrap">${subTabs()}</div>
-      <div class="space-y-4">${resumenCard()}${form}${tabla}</div>`;
+      <div class="space-y-4">${soloCaptura ? controlsBar() : resumenCard()}${form}${tabla}</div>`;
     wire();
   };
 
@@ -176,6 +192,7 @@ export function render(container) {
     container.querySelectorAll('[data-sub]').forEach((b) =>
       b.addEventListener('click', () => { sub = b.dataset.sub; editId = null; draw(); }));
     wireMonthNav(container, mes, (m) => { mes = m; draw(); });
+    container.querySelector('[data-hoy]')?.addEventListener('click', () => { soloHoy = !soloHoy; draw(); });
 
     const form = container.querySelector('#skvo-form');
     if (editId) {

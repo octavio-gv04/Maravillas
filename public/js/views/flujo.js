@@ -7,13 +7,15 @@
 import { flujoEtapa } from '../calc.js';
 import { subscribe } from '../store.js';
 import { ZONAS } from '../config.js';
-import { money, esc, todayISO } from '../utils.js';
+import { money, esc } from '../utils.js';
 import { card, badge, cardTitle } from '../ui.js';
+import { getMes, onMes, mesDesde, mesHasta } from '../periodo.js';
 
 export function render(container) {
   let etapa = ZONAS[1] || ZONAS[0]; // "Etapa 3" por defecto
-  let desde = '';
-  let hasta = '';
+  // Rango por defecto = mes activo del Control Mensual (editable manualmente).
+  let desde = mesDesde();
+  let hasta = mesHasta();
 
   const row = (label, value, cls = '') =>
     `<div class="flex justify-between py-1 ${cls}"><span>${esc(label)}</span><span class="font-medium tabular-nums">${money(value)}</span></div>`;
@@ -124,6 +126,9 @@ export function render(container) {
     container.querySelector('#f-clear').addEventListener('click', () => { desde = ''; hasta = ''; draw(); });
   };
 
+  // Al cambiar el mes global, reencuadra el rango al mes elegido.
+  const onPeriodo = () => { desde = mesDesde(); hasta = mesHasta(); draw(); };
   draw();
-  return subscribe(draw);
+  const unsubs = [subscribe(draw), onMes(onPeriodo)];
+  return () => unsubs.forEach((u) => u());
 }
