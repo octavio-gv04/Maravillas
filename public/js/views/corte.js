@@ -48,23 +48,22 @@ export function render(container) {
       contadoRaw: g('contado') ? g('contado').value.trim() : '',
       recibio: g('recibio') ? g('recibio').value : '',
       recibioOtro: g('recibioOtro') ? g('recibioOtro').value.trim() : '',
-      recogido: g('recogido') ? g('recogido').checked : false,
       recoleccion: g('recoleccion') ? g('recoleccion').value : '',
       observaciones: g('observaciones') ? g('observaciones').value.trim() : '',
     };
   };
   const saveCorte = async (fecha, scope) => {
     const v = readScope(scope);
-    if (v.contadoRaw === '' && !v.recibio && !v.observaciones && !v.recogido) return;
+    if (v.contadoRaw === '' && !v.recibio && !v.observaciones && !v.recoleccion) return;
     const esperado = resumenDia(fecha).efectivoEsperado;
     const contado = v.contadoRaw === '' ? null : toNum(v.contadoRaw);
     const diferencia = contado == null ? null : Math.round((esperado - contado) * 100) / 100;
-    const recoleccionFecha = v.recogido && !v.recoleccion ? todayISO() : v.recoleccion;
+    const recoleccionFecha = v.recoleccion;
     try {
       await cortes.save({
         fecha, esperado, contado, diferencia,
         recibio: v.recibio, recibioOtro: v.recibio === 'Otro' ? v.recibioOtro : '',
-        recogido: v.recogido, recoleccionFecha,
+        recogido: !!(v.recibio || recoleccionFecha), recoleccionFecha,
         observaciones: v.observaciones,
         estado: diferencia == null ? 'Pendiente' : (Math.abs(diferencia) < 0.01 ? 'Conciliado' : 'Con diferencia'),
       });
@@ -95,7 +94,7 @@ export function render(container) {
     const totContado = filas.reduce((a, f) => a + (f.contado || 0), 0);
     const totFaltante = filas.reduce((a, f) => a + (f.dif.tipo === 'faltante' ? f.dif.val : 0), 0);
     const totSobrante = filas.reduce((a, f) => a + (f.dif.tipo === 'sobrante' ? -f.dif.val : 0), 0);
-    const totPendiente = filas.reduce((a, f) => a + ((f.contado > 0 && !f.c.recogido) ? f.contado : 0), 0);
+    const totPendiente = filas.reduce((a, f) => a + ((f.contado > 0 && !f.c.recibio && !f.c.recoleccionFecha) ? f.contado : 0), 0);
 
     // ---------- Tarjeta: Corte de hoy ----------
     const hoy = todayISO();
@@ -122,7 +121,6 @@ export function render(container) {
         <label class="block"><span class="text-xs font-medium text-gray-600 dark:text-gray-300">Fecha de recolección</span>
           <input type="date" lang="es-MX" data-field="recoleccion" class="field mt-1" value="${esc(h.recoleccionFecha || '')}" /></label>
         <input type="text" data-field="recibioOtro" class="field ${h.recibio === 'Otro' ? '' : 'hidden'}" placeholder="Especificar quién" value="${esc(h.recibioOtro || '')}" />
-        <label class="inline-flex items-center gap-2 text-sm"><input type="checkbox" data-field="recogido" class="w-4 h-4" ${h.recogido ? 'checked' : ''} /> Ya se recogió</label>
         <label class="block sm:col-span-2"><span class="text-xs font-medium text-gray-600 dark:text-gray-300">Motivo / nota</span>
           <input type="text" data-field="observaciones" class="field mt-1" placeholder="Motivo del descuadre o nota…" value="${esc(h.observaciones || '')}" /></label>
       </div>
@@ -132,7 +130,7 @@ export function render(container) {
     // ---------- Tabla del mes ----------
     const estadoEntrega = (f) => {
       if (f.contado == null || f.contado === 0) return '<span class="text-gray-400">—</span>';
-      return f.c.recogido
+      return (f.c.recibio || f.c.recoleccionFecha)
         ? '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300"><span class="dot dot-green"></span>Recogido</span>'
         : '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"><span class="dot dot-yellow"></span>Pendiente</span>';
     };
@@ -148,7 +146,6 @@ export function render(container) {
           <input type="text" data-field="recibioOtro" placeholder="Especificar" class="field !py-1 !w-28 mt-1 ${f.c.recibio === 'Otro' ? '' : 'hidden'}" value="${esc(f.c.recibioOtro || '')}" />
         </td>
         <td class="px-2 py-1"><input type="date" lang="es-MX" data-field="recoleccion" class="field !py-1 !w-36" value="${esc(f.c.recoleccionFecha || '')}" /></td>
-        <td class="px-2 py-1 text-center"><input type="checkbox" data-field="recogido" class="w-4 h-4" ${f.c.recogido ? 'checked' : ''} /></td>
         <td class="px-2 py-1"><input type="text" data-field="observaciones" placeholder="Motivo / nota…" class="field !py-1 w-full min-w-[10rem]" value="${esc(f.c.observaciones || '')}" /></td>
       </tr>`;
 
@@ -164,7 +161,6 @@ export function render(container) {
               <th class="px-3 py-2 text-center">Entrega</th>
               <th class="px-2 py-2">Recibió</th>
               <th class="px-2 py-2">Recolección</th>
-              <th class="px-2 py-2 text-center">Recogido</th>
               <th class="px-2 py-2">Motivo / nota</th>
             </tr>
           </thead>
@@ -174,7 +170,7 @@ export function render(container) {
               <td class="px-3 py-2">Total del mes</td>
               <td class="px-3 py-2 text-right tabular-nums">${money(totEsperado)}</td>
               <td class="px-3 py-2 text-right tabular-nums">${money(totContado)}</td>
-              <td colspan="6"></td>
+              <td colspan="5"></td>
             </tr>
           </tfoot>
         </table>
@@ -221,7 +217,6 @@ export function render(container) {
       recibioSelEl.addEventListener('change', () => { otroInput.classList.toggle('hidden', recibioSelEl.value !== 'Otro'); saveCorte(tr.dataset.fecha, tr); });
       otroInput.addEventListener('change', () => saveCorte(tr.dataset.fecha, tr));
       tr.querySelector('[data-field="recoleccion"]').addEventListener('change', () => saveCorte(tr.dataset.fecha, tr));
-      tr.querySelector('[data-field="recogido"]').addEventListener('change', () => saveCorte(tr.dataset.fecha, tr));
       tr.querySelector('[data-field="observaciones"]').addEventListener('change', () => saveCorte(tr.dataset.fecha, tr));
     });
 
