@@ -41,7 +41,7 @@ export function render(container) {
       <div class="mt-4">${card(
         filas.length ? `<div class="table-wrap"><table class="w-full text-sm">
           <thead class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-700">
-            <tr><th class="py-2">Vendedor</th><th class="text-right">Lotes vendidos</th><th class="text-right">Clientes</th><th class="text-right">Ingresos generados</th><th class="text-right">% Com.</th><th class="text-right">Comisión est.</th>${puedeEditar ? '<th></th>' : ''}</tr>
+            <tr><th class="py-2">Vendedor</th><th class="text-right">Lotes</th><th class="text-right">Clientes</th><th class="text-right">Ingresos generados</th><th class="text-right">Comisión total</th><th class="text-right">Por pagar</th><th class="text-right">% efec.</th>${puedeEditar ? '<th></th>' : ''}</tr>
           </thead>
           <tbody>
             ${filas.map((v) => `<tr class="border-b border-gray-100 dark:border-gray-700/50 ${keyOf(v.nombre) === keyOf(expanded) ? 'bg-brand/5' : ''}">
@@ -49,14 +49,16 @@ export function render(container) {
               <td class="text-right tabular-nums">${v.lotesVendidos}</td>
               <td class="text-right tabular-nums"><button data-ver="${esc(v.nombre)}" class="hover:text-brand underline-offset-2 hover:underline">${v.clientesACargo}</button></td>
               <td class="text-right tabular-nums text-green-600">${money(v.ingresosGenerados)}</td>
-              <td class="text-right tabular-nums">${v.pctComision ? v.pctComision + '%' : '—'}</td>
-              <td class="text-right tabular-nums">${v.pctComision ? money(v.comisionEstimada) : '—'}</td>
+              <td class="text-right tabular-nums">${v.comisionTotal ? money(v.comisionTotal) : '—'}</td>
+              <td class="text-right tabular-nums text-amber-600">${v.comisionExigible ? money(v.comisionExigible) : '—'}</td>
+              <td class="text-right tabular-nums text-gray-500">${v.pctEfectivo ? v.pctEfectivo + '%' : '—'}</td>
               ${puedeEditar ? `<td class="text-right whitespace-nowrap">
                 <button data-edit="${esc(v.master?.id || '')}" data-nombre="${esc(v.nombre)}" class="text-brand">${v.master ? 'Editar' : 'Dar de alta'}</button>
                 ${v.master && can('eliminar') ? `· <button data-del="${esc(v.master.id)}" class="text-red-600">Borrar</button>` : ''}
               </td>` : ''}
             </tr>`).join('')}
-          </tbody></table></div>` : empty('Sin vendedores. Surgen de los pagos o se dan de alta aquí.'))}
+          </tbody></table></div>
+          <p class="text-xs text-gray-400 mt-2">"Por pagar" = comisión de ventas con el enganche ya cubierto (lista para pagarse al vendedor). "% efec." = comisión total ÷ venta total.</p>` : empty('Sin vendedores. Surgen de los pagos o se dan de alta aquí.'))}
       </div>
       ${expanded ? detalleVendedor(expanded) : ''}
     `;

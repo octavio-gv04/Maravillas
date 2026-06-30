@@ -484,24 +484,40 @@ export function lotesResumen() {
 }
 
 // ---------- Vendedores ----------
+/** % de comisión por defecto registrado de un vendedor (o null si no está dado de alta). */
+export function comisionVendedor(nombre) {
+  const v = vendedores.all().find((x) => keyOf(x.nombre) === keyOf(nombre));
+  return v ? toNum(v.comision) : null;
+}
+
 export function vendedoresResumen() {
   const vendidos = lotesEtapa().filter((l) => ci(l.estado, 'Vendido') && l.vendedor && !ci(l.vendedor, 'Seleccionar'));
   const live = idxLive();
   const reg = vendedores.all();
+  const pagadoPorLote = new Map(lotesCliente().map((x) => [keyOf(x.lote), x.totalPagado]));
   const grupos = groupBy(vendidos, (l) => keyOf(l.vendedor));
 
   return [...grupos.entries()].map(([k, lts]) => {
     const nombre = lts[0].vendedor;
     const master = reg.find((v) => keyOf(v.nombre) === k) || null;
     const ingresosGen = lts.reduce((a, l) => a + toNum(l.pago) + sum(live.get(keyOf(l.numero)) || []), 0);
-    const comisionMonto = sum(lts, (l) => l.comisionMonto);
+    const ventaTotal = sum(lts, (l) => toNum(l.precio));
+    const comisionTotal = sum(lts, (l) => l.comisionMonto);
+    // Comisión EXIGIBLE = la de ventas con el enganche ya cubierto (cliente pagó ≥ enganche):
+    // es la regla de pago al vendedor.
+    const comisionExigible = lts.reduce((a, l) => {
+      const pagado = pagadoPorLote.get(keyOf(l.numero)) ?? (toNum(l.pago) + sum(live.get(keyOf(l.numero)) || []));
+      return a + (pagado >= toNum(l.enganche) ? toNum(l.comisionMonto) : 0);
+    }, 0);
     const clientesACargo = new Set(lts.map((l) => keyOf(l.cliente))).size;
-    const pct = master ? toNum(master.comision) : (toNum(lts[0].comisionPct) || 0);
+    const pctEfectivo = ventaTotal ? Math.round(comisionTotal / ventaTotal * 1000) / 10 : 0;
     return {
       nombre, master, lotesVendidos: lts.length, clientesACargo,
-      ingresosGenerados: ingresosGen, pctComision: pct, comisionEstimada: comisionMonto,
+      ingresosGenerados: ingresosGen, ventaTotal,
+      comisionTotal, comisionExigible, pctEfectivo,
+      pctDefault: master ? toNum(master.comision) : 0,
     };
-  }).sort((a, b) => b.ingresosGenerados - a.ingresosGenerados);
+  }).sort((a, b) => b.comisionTotal - a.comisionTotal);
 }
 
 // ---------- Pagos unificados (para reportes / historial general) ----------
@@ -615,7 +631,7 @@ export function serieIngresosPorDia(mes) {
  */
 export async function registrarVentaLote({
   lote, cliente, vendedor = '', etapa = '', fecha = '',
-  telefono = '', email = '', precio, mensualidad,
+  telefono = '', email = '', precio, mensualidad, comisionPct,
 } = {}) {
   const numero = String(lote || '').trim();
   const nombre = String(cliente || '').trim();
@@ -625,6 +641,7 @@ export async function registrarVentaLote({
   const mail = String(email || '').trim();
   const pre = Number(precio) || 0;
   const mens = Number(mensualidad) || 0;
+  const comPct = Number(comisionPct) || 0;   // % de comisión de ESTA venta
   const lk = keyOf(numero);
   const existente = lotes.all().find((l) => keyOf(l.numero) === lk);
 
@@ -638,6 +655,11 @@ export async function registrarVentaLote({
     if (mail) patch.email = mail;
     if (pre) patch.precio = pre;
     if (mens) patch.mensualidad = mens;
+    if (comPct > 0) {
+      const precioBase = pre || toNum(existente.precio);
+      patch.comisionPct = comPct;
+      patch.comisionMonto = Math.round(precioBase * comPct / 100);   // comisión = precio × %
+    }
     if (!Object.keys(patch).length) return { action: 'none', numero, cliente: existente.cliente || nombre };
     await lotes.update(existente.id, patch);
     return { action: 'update', numero, cliente: patch.cliente || existente.cliente || nombre };
@@ -656,6 +678,8 @@ export async function registrarVentaLote({
     email: mail,
     precio: pre || undefined,
     mensualidad: mens || undefined,
+    comisionPct: comPct || undefined,
+    comisionMonto: comPct ? Math.round(pre * comPct / 100) : undefined,   // comisión = precio × %
     origen: 'diario',
   });
   return { action: 'create', numero, cliente: nombre };

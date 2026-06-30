@@ -85,30 +85,37 @@ export function toast(msg, type = 'info') {
 export const confirmAction = (msg) => window.confirm(msg);
 
 // ---------- Campos de dinero ($ + miles) ----------
-/** Formatea a moneda todos los inputs [data-money] dentro de root. */
+/** Formatea los inputs [data-money] ($1,234.00) y [data-percent] (10%) dentro de root. */
 export function formatMoneyIn(root) {
   (root || document).querySelectorAll('[data-money]').forEach((el) => {
     el.value = el.value.trim() === '' ? '' : money(toNum(el.value));
   });
+  (root || document).querySelectorAll('[data-percent]').forEach((el) => {
+    el.value = el.value.trim() === '' ? '' : toNum(el.value) + '%';
+  });
 }
 
 /**
- * Instala (una vez) el comportamiento de los campos de dinero: al enfocar se
- * muestra el número plano para editar; al salir se formatea como $1,234.00.
- * El guardado lee el valor con toNum, que ya tolera el formato.
+ * Instala (una vez) el comportamiento de los campos de dinero ([data-money]) y de
+ * porcentaje ([data-percent]): al enfocar se muestra el número plano para editar;
+ * al salir se formatea ($1,234.00 o 10%). El guardado lee con toNum, que ya tolera
+ * el formato (quita $ , %).
  */
 export function installMoneyInputs() {
   document.addEventListener('focusin', (e) => {
     const el = e.target;
-    if (el && el.matches && el.matches('[data-money]')) {
+    if (el && el.matches && el.matches('[data-money], [data-percent]')) {
       el.value = el.value.trim() === '' ? '' : String(toNum(el.value));
       try { el.select(); } catch {}
     }
   });
   document.addEventListener('focusout', (e) => {
     const el = e.target;
-    if (el && el.matches && el.matches('[data-money]')) {
+    if (!el || !el.matches) return;
+    if (el.matches('[data-money]')) {
       el.value = el.value.trim() === '' ? '' : money(toNum(el.value));
+    } else if (el.matches('[data-percent]')) {
+      el.value = el.value.trim() === '' ? '' : toNum(el.value) + '%';
     }
   });
 }

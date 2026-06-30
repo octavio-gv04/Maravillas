@@ -10,7 +10,7 @@ import { money, prettyDate, todayISO, esc, toNum, toast, confirmAction, formatMo
 import { card, btn, btnGhost, field, select, textarea, sectionHead, empty, badge, cardTitle, actionBtn, monthNav, wireMonthNav } from '../ui.js';
 import { svgIcon } from '../icons.js';
 import { can, isCapturista } from '../auth.js';
-import { catalogoCaptura, keyOf, registrarVentaLote, revertirVentaLote } from '../maestra.js';
+import { catalogoCaptura, keyOf, registrarVentaLote, revertirVentaLote, comisionVendedor } from '../maestra.js';
 import { imprimirComprobante } from '../recibo.js';
 
 export function render(container) {
@@ -46,14 +46,16 @@ export function render(container) {
       ${select({ label: 'Etapa', name: 'etapa', options: ETAPAS_INGRESO })}
       ${field({ label: 'Lote', name: 'lote', placeholder: 'Ej. M39-L25', attrs: 'list="dl-lotes" autocomplete="off" required' })}
       ${select({ label: 'Tipo de venta', name: 'categoria', options: CAT_VENTA_FORM })}
-      ${field({ label: 'Nombre del cliente', name: 'cliente', placeholder: 'Nombre completo', attrs: 'list="dl-clientes" autocomplete="off" required' })}
+      <div class="sm:col-span-2">${field({ label: 'Nombre del cliente', name: 'cliente', placeholder: 'Nombre completo', attrs: 'list="dl-clientes" autocomplete="off" required' })}</div>
       ${field({ label: 'Teléfono', name: 'telefono', type: 'tel', placeholder: '10 dígitos' })}
       ${field({ label: 'Email', name: 'email', type: 'email', placeholder: 'correo@ejemplo.com' })}
-      ${select({ label: 'Vendedor', name: 'vendedor', options: ['', ...VENDEDORES] })}
       ${select({ label: 'Tipo (método)', name: 'metodo', options: METODOS_INGRESO })}
       ${field({ label: 'Enganche / pago', name: 'monto', money: true, attrs: 'required' })}
       ${field({ label: 'Precio del lote', name: 'precio', money: true })}
       ${field({ label: 'Mensualidad', name: 'mensualidad', money: true })}
+      <!-- Vendedor y comisión, juntos al final -->
+      ${select({ label: 'Vendedor', name: 'vendedor', options: ['', ...VENDEDORES] })}
+      ${field({ label: '% Comisión', name: 'comisionPct', type: 'text', placeholder: 'Ej. 7%', attrs: 'data-percent inputmode="decimal" autocomplete="off"' })}
       <div class="sm:col-span-2 lg:col-span-4">
         ${textarea({ label: 'Observaciones', name: 'observaciones' })}
       </div>`;
@@ -64,13 +66,9 @@ export function render(container) {
       ${field({ label: 'Lote', name: 'lote', placeholder: 'Ej. M39-L25', attrs: 'list="dl-lotes" autocomplete="off"' })}
       ${select({ label: 'Pago (categoría)', name: 'categoria', options: catPago })}
       ${field({ label: 'Cliente', name: 'cliente', placeholder: 'Cliente (de la Base Maestra)', attrs: 'list="dl-clientes" autocomplete="off"' })}
-      ${select({ label: 'Vendedor', name: 'vendedor', options: ['', ...VENDEDORES] })}
       ${select({ label: 'Tipo (método)', name: 'metodo', options: METODOS_INGRESO })}
       ${field({ label: 'Cantidad', name: 'monto', money: true, attrs: 'required' })}
       ${field({ label: 'Saldo', name: 'saldo', money: true })}
-      <label class="flex items-center gap-2 mt-5 text-sm">
-        <input type="checkbox" name="verificado" class="w-4 h-4" /> Verificado
-      </label>
       <div class="sm:col-span-2 lg:col-span-4">
         ${textarea({ label: 'Observaciones', name: 'observaciones' })}
       </div>`;
@@ -195,12 +193,11 @@ export function render(container) {
         setVal('metodo', item.metodo);
         setVal('monto', item.monto);
         setVal('saldo', item.saldo ?? '');
-        if (els.verificado) els.verificado.checked = !!item.verificado;
         setVal('observaciones', item.observaciones || '');
         // En Venta, completa los datos comerciales desde el lote.
         if (modo === 'venta') {
           const l = loteDe(item.lote);
-          if (l) { setVal('telefono', l.telefono || ''); setVal('email', l.email || ''); setVal('precio', l.precio || ''); setVal('mensualidad', l.mensualidad || ''); }
+          if (l) { setVal('telefono', l.telefono || ''); setVal('email', l.email || ''); setVal('precio', l.precio || ''); setVal('mensualidad', l.mensualidad || ''); setVal('comisionPct', l.comisionPct || ''); }
         }
         formatMoneyIn(form); // muestra los montos prellenados como $1,234.00
       }
@@ -213,6 +210,13 @@ export function render(container) {
       if (r.vendedor && !els.vendedor.value) els.vendedor.value = r.vendedor;
       const ls = [...r.lotes];
       if (ls.length === 1 && !els.lote.value.trim()) els.lote.value = ls[0];
+    });
+
+    // En Venta, al elegir vendedor se sugiere su % de comisión por defecto (editable).
+    els.vendedor?.addEventListener('change', () => {
+      if (modo !== 'venta' || !els.comisionPct || els.comisionPct.value.trim()) return;
+      const pct = comisionVendedor(els.vendedor.value);
+      if (pct != null && pct > 0) els.comisionPct.value = pct + '%';   // formateado
     });
 
     // Indicador de disponibilidad del lote (solo en modo Venta).
@@ -267,7 +271,7 @@ export function render(container) {
         lote,
         categoria,
         cliente: els.cliente.value.trim(),
-        vendedor: els.vendedor.value,
+        vendedor: els.vendedor?.value || '',   // solo existe en modo Venta
         metodo: els.metodo.value,
         monto: toNum(els.monto.value),
         observaciones: (els.observaciones?.value || '').trim(),
@@ -277,7 +281,8 @@ export function render(container) {
       // Campos exclusivos del modo Pago.
       if (modo === 'pago') {
         data.saldo = els.saldo.value === '' ? null : toNum(els.saldo.value);
-        data.verificado = !!els.verificado?.checked;
+        // `verificado` ya NO se captura aquí: se marca en el Corte (depósitos por
+        // verificar). No se incluye en `data` para no pisarlo al editar un pago.
       }
       if (data.monto <= 0) { toast('La cantidad debe ser mayor a 0', 'error'); return; }
       if (modo === 'venta' && (!data.lote || !data.cliente)) { toast('Venta: lote y nombre del cliente son obligatorios', 'error'); return; }
@@ -311,6 +316,7 @@ export function render(container) {
             email: (els.email?.value || '').trim(),
             precio: els.precio?.value ? toNum(els.precio.value) : undefined,
             mensualidad: els.mensualidad?.value ? toNum(els.mensualidad.value) : undefined,
+            comisionPct: els.comisionPct?.value ? toNum(els.comisionPct.value) : undefined,
           } : {};
           try {
             const r = await registrarVentaLote({
