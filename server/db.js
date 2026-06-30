@@ -144,7 +144,11 @@ const labels = {
   ingresos: 'Ingreso', gastos: 'Gasto',
   skvoIngresos: 'Ingreso SKVO', skvoGastos: 'Gasto SKVO',
   lotes: 'Lote', contratos: 'Contrato', vendedores: 'Vendedor', cobranza: 'Nota de cobranza',
+  pagos: 'Pago', sobres: 'Sobre',
 };
+// Etiqueta de colección para la bitácora, con respaldo para que ninguna colección
+// (presente o futura) genere un detalle que empiece con "undefined:".
+const labelOf = (col) => labels[col] || 'Registro';
 
 export function create(col, data, usuario) {
   const item = { id: uid(), creado: new Date().toISOString(), ...data };
@@ -162,7 +166,7 @@ export function create(col, data, usuario) {
   }
   normNombres(col, item);
   db[col].push(item);
-  const h = log(usuario, 'Alta', `${labels[col]}: ${nombre(item)}`);
+  const h = log(usuario, 'Alta', `${labelOf(col)}: ${nombre(item)}`);
   save();
   return { item, historial: h };
 }
@@ -178,7 +182,7 @@ export function update(col, id, data, usuario) {
   if (idx === -1) return null;
   db[col][idx] = { ...db[col][idx], ...data, id };
   normNombres(col, db[col][idx]);
-  const h = log(usuario, 'Edición', `${labels[col]}: ${nombre(db[col][idx])}`);
+  const h = log(usuario, 'Edición', `${labelOf(col)}: ${nombre(db[col][idx])}`);
   save();
   return { item: db[col][idx], historial: h };
 }
@@ -186,7 +190,7 @@ export function update(col, id, data, usuario) {
 export function remove(col, id, usuario) {
   const target = db[col].find((x) => x.id === id);
   db[col] = db[col].filter((x) => x.id !== id);
-  const h = log(usuario, 'Eliminación', `${labels[col]}: ${target ? nombre(target) : id}`);
+  const h = log(usuario, 'Eliminación', `${labelOf(col)}: ${target ? nombre(target) : id}`);
   save();
   return { id, historial: h };
 }
