@@ -13,7 +13,7 @@
  */
 
 import { resumenDia } from '../calc.js';
-import { cortes, subscribe } from '../store.js';
+import { cortes, ingresos, subscribe } from '../store.js';
 import { RECIBIO_CORTE } from '../config.js';
 import { money, todayISO, toNum, esc, toast, mesLargo } from '../utils.js';
 import { card, cardTitle, btn, monthNav, wireMonthNav } from '../ui.js';
@@ -41,6 +41,8 @@ const contadoDe = (c) => (c && c.contado != null && c.contado !== '' ? toNum(c.c
 
 export function render(container) {
   const opcionesRecibio = ['', ...RECIBIO_CORTE];
+  let depFiltro = 'pendientes';   // pendientes | verificados | todos (lista de depósitos)
+  let corteTab = 'efectivo';      // efectivo | depositos | reporte (pestañas del Corte)
 
   // Lee los campos (data-field) dentro de un contenedor (tarjeta de hoy o fila).
   const readScope = (scope) => {
@@ -187,14 +189,72 @@ export function render(container) {
       </div>
     `);
 
+    // ---------- Depósitos por verificar (contra el banco) ----------
+    // Pagos por Depósito del mes, agrupados por la FECHA DEL DEPÓSITO (no la de captura).
+    const depsMes = ingresos.all()
+      .filter((i) => /dep[oó]sito/i.test(i.metodo || '') && (i.fecha || '').startsWith(mes))
+      .sort((a, b) => (a.fecha || '').localeCompare(b.fecha || ''));
+    const totDepositado = depsMes.reduce((a, d) => a + toNum(d.monto), 0);
+    const totVerificado = depsMes.filter((d) => d.verificado).reduce((a, d) => a + toNum(d.monto), 0);
+    const totDepPend = totDepositado - totVerificado;
+    const depList = depsMes.filter((d) => depFiltro === 'todos' ? true : depFiltro === 'verificados' ? d.verificado : !d.verificado);
+    const porFecha = new Map();
+    depList.forEach((d) => { const k = d.fecha || ''; if (!porFecha.has(k)) porFecha.set(k, []); porFecha.get(k).push(d); });
+    const depTab = (key, label) => `<button data-depfiltro="${key}" class="px-3 py-1 rounded-full text-xs border ${depFiltro === key ? 'bg-brand text-white border-brand' : 'border-gray-300 dark:border-gray-600'}">${label}</button>`;
+    const depFilasHtml = [...porFecha.entries()].map(([fecha, items]) => {
+      const tot = items.reduce((a, d) => a + toNum(d.monto), 0);
+      const head = `<tr class="bg-gray-50 dark:bg-gray-800/60"><td colspan="4" class="px-3 py-1.5 font-medium text-gray-600 dark:text-gray-300">${etiquetaFecha(fecha)} · ${items.length} depósito(s) · ${money(tot)}</td></tr>`;
+      const rows = items.map((d) => `<tr class="border-b border-gray-100 dark:border-gray-700/50">
+        <td class="px-3 py-1.5">${esc(d.cliente || '—')}</td>
+        <td class="px-3 py-1.5 text-gray-500">${esc(d.lote || '—')}</td>
+        <td class="px-3 py-1.5 text-right tabular-nums">${money(d.monto)}</td>
+        <td class="px-3 py-1.5 text-center"><input type="checkbox" data-verif="${esc(d.id)}" class="w-4 h-4 align-middle" ${d.verificado ? 'checked' : ''} /></td>
+      </tr>`).join('');
+      return head + rows;
+    }).join('');
+    const depCard = card(`
+      <div class="flex items-center justify-between gap-3 mb-3 flex-wrap">
+        ${cardTitle('creditCard', 'Depósitos por verificar', 'bg-cyan-500')}
+        <div class="flex gap-2">${depTab('pendientes', 'Pendientes')}${depTab('verificados', 'Verificados')}${depTab('todos', 'Todos')}</div>
+      </div>
+      ${depList.length ? `<div class="table-wrap"><table class="w-full text-sm">
+        <thead class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-700">
+          <tr><th class="px-3 py-2">Cliente</th><th class="px-3 py-2">Lote</th><th class="px-3 py-2 text-right">Monto</th><th class="px-3 py-2 text-center">Verificado</th></tr>
+        </thead>
+        <tbody>${depFilasHtml}</tbody>
+      </table></div>` : '<p class="text-sm text-gray-400 py-3">Sin depósitos en este filtro.</p>'}
+      <div class="grid grid-cols-3 gap-3 mt-3 text-sm">
+        <div class="rounded-lg bg-gray-50 dark:bg-gray-800/60 px-3 py-2"><span class="text-gray-500">Depositado</span><br><span class="font-bold tabular-nums">${money(totDepositado)}</span></div>
+        <div class="rounded-lg bg-green-50 dark:bg-green-900/20 px-3 py-2"><span class="text-gray-500">Verificado</span><br><span class="font-bold text-green-600 tabular-nums">${money(totVerificado)}</span></div>
+        <div class="rounded-lg bg-amber-50 dark:bg-amber-900/20 px-3 py-2"><span class="text-gray-500">Pendiente</span><br><span class="font-bold text-amber-600 tabular-nums">${money(totDepPend)}</span></div>
+      </div>
+      <p class="text-xs text-gray-400 mt-2">Marca cada depósito al cuadrarlo con el estado de cuenta del banco. Se agrupa por la fecha del depósito (no la de captura).</p>
+    `);
+
+    // ---------- Pestañas del Corte (acortan el scroll) ----------
+    const corteTabBtn = (key, label) => `<button data-cortetab="${key}" class="px-3 py-1.5 rounded-lg text-sm font-medium ${corteTab === key ? 'bg-brand text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'}">${esc(label)}</button>`;
+    const reporteCard = card(`
+      <div class="text-center py-10">
+        <p class="text-3xl mb-2">📋</p>
+        <p class="font-medium text-gray-500">Reporte diario</p>
+        <p class="text-sm text-gray-400 mt-1">Próximamente: el resumen para cerrar el día (efectivo, depósitos, entregas y pendientes).</p>
+      </div>
+    `);
+    const contenido = corteTab === 'depositos' ? depCard
+      : corteTab === 'reporte' ? reporteCard
+      : `<div class="space-y-4">${hoyCard}${tabla}</div>`;
+
     container.innerHTML = `
       <div class="flex items-center gap-3 mb-4 flex-wrap">
-        <h1 class="text-lg font-bold">Efectivo, entrega y nota</h1>
+        <h1 class="text-lg font-bold">Corte</h1>
         <span class="text-sm text-gray-400">·</span>
         <label class="text-sm text-gray-500">Mes:</label>
         ${soloActual ? `<span class="text-sm font-medium">${esc(mesLargo(mes))}</span>` : monthNav(mes)}
       </div>
-      <div class="space-y-4">${hoyCard}${tabla}</div>
+      <div class="flex gap-2 mb-4 flex-wrap">
+        ${corteTabBtn('efectivo', 'Efectivo')}${corteTabBtn('depositos', 'Depósitos')}${corteTabBtn('reporte', 'Reporte diario')}
+      </div>
+      ${contenido}
       <p class="text-xs text-gray-500 mt-3">El <strong>Corte del Flujo</strong> es el efectivo esperado del día (ingresos − gastos en efectivo, incluido SKVO) y se calcula solo. Captura el <strong>Contado</strong> físico: si no coincide, se marca <strong>Faltante</strong> o <strong>Sobrante</strong>. La <strong>recolección</strong> (quién y cuándo) puede registrarse después; los días sin recoger quedan <strong>Pendiente</strong>.</p>
     `;
 
@@ -210,9 +270,11 @@ export function render(container) {
       });
     }
 
-    // ---------- Wiring filas ----------
+    // ---------- Wiring filas (solo las del corte de efectivo) ----------
     container.querySelectorAll('tbody tr').forEach((tr) => {
-      const esperado = toNum(tr.querySelector('[data-flujo]').dataset.esperado);
+      const flujoEl = tr.querySelector('[data-flujo]');
+      if (!flujoEl) return;   // otras tablas (p.ej. depósitos) no tienen estas filas
+      const esperado = toNum(flujoEl.dataset.esperado);
       const contadoInput = tr.querySelector('[data-field="contado"]');
       contadoInput.addEventListener('input', () => recompute(tr, esperado));
       contadoInput.addEventListener('change', () => saveCorte(tr.dataset.fecha, tr));
@@ -223,6 +285,19 @@ export function render(container) {
       tr.querySelector('[data-field="recoleccion"]').addEventListener('change', () => saveCorte(tr.dataset.fecha, tr));
       tr.querySelector('[data-field="observaciones"]').addEventListener('change', () => saveCorte(tr.dataset.fecha, tr));
     });
+
+    // ---------- Wiring pestañas ----------
+    container.querySelectorAll('[data-cortetab]').forEach((b) =>
+      b.addEventListener('click', () => { corteTab = b.dataset.cortetab; draw(); }));
+
+    // ---------- Wiring depósitos por verificar ----------
+    container.querySelectorAll('[data-depfiltro]').forEach((b) =>
+      b.addEventListener('click', () => { depFiltro = b.dataset.depfiltro; draw(); }));
+    container.querySelectorAll('[data-verif]').forEach((chk) =>
+      chk.addEventListener('change', async () => {
+        try { await ingresos.update(chk.dataset.verif, { verificado: chk.checked }); }
+        catch (err) { chk.checked = !chk.checked; toast('No se pudo guardar: ' + err.message, 'error'); }
+      }));
 
     if (!soloActual) wireMonthNav(container, mes, (m) => setMes(m));
   };

@@ -50,7 +50,7 @@ route('dashboard', { title: 'Dashboard', icon: '🏠', render: dashboard, group:
 route('ingresos', { title: 'Ingresos', icon: '📈', render: ingresos, groups: ['diario', 'captura'] });
 route('gastos', { title: 'Gastos', icon: '📉', render: gastos, groups: ['diario', 'captura'] });
 route('flujo', { title: 'Flujo de efectivo', icon: '💵', render: flujo, group: 'diario' });
-route('corte', { title: 'Corte efectivo', icon: '🧮', render: corte, groups: ['diario', 'captura'] });
+route('corte', { title: 'Corte', icon: '🧮', render: corte, groups: ['diario', 'captura'] });
 route('skvo', { title: 'SKVO', icon: '⚙️', render: skvo, groups: ['diario', 'captura'] });
 route('conciliacion', { title: 'Conciliación', icon: '🔗', render: conciliacion, group: 'diario' });
 route('historial', { title: 'Historial', icon: '🕑', render: historial, group: 'diario' });
