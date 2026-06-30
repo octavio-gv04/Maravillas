@@ -65,10 +65,16 @@ route('m/clientes', { title: 'Clientes', icon: '👥', render: mClientes, group:
 // Revisión de Sobres: conciliación mes a mes del sobre físico (corrige historial
 // y recalcula atraso). Disponible para ambos roles (captura y maestra/admin).
 // Registrada tras Clientes para que aparezca debajo de Clientes en Base de Datos.
-route('sobres', { title: 'Sobre', icon: '✉️', render: sobres, groups: ['captura', 'maestra'] });
+// Sobre: la LISTA de revisión vive en el menú de Captura (Hillary). En la Maestra
+// (admin) NO va en el menú —se revisa por lote desde el Estado de cuenta del
+// cliente—, pero la ruta sigue accesible para que ese botón funcione.
+route('sobres', { title: 'Sobre', icon: '✉️', render: sobres, groups: ['captura', 'maestra'], hideInMenu: ['maestra'] });
 route('m/lotes', { title: 'Lotes', icon: '🏠', render: mLotes, group: 'maestra' });
 route('m/contratos', { title: 'Contratos', icon: '📄', render: mContratos, group: 'maestra' });
-route('m/estado-cuenta', { title: 'Estado de cuenta', icon: '🧾', render: mEstadoCuenta, group: 'maestra' });
+// Estado de cuenta: NO es un módulo del menú, es el detalle 360° de UN cliente.
+// Se abre desde Clientes (y desde General/Cobranza/Morosos al hacer clic en una
+// fila). `hidden: true` lo mantiene como ruta navegable pero fuera del menú lateral.
+route('m/estado-cuenta', { title: 'Estado de cuenta', icon: '🧾', hidden: true, render: mEstadoCuenta, group: 'maestra' });
 route('m/cobranza', { title: 'Cobranza', icon: '💳', render: mCobranza, group: 'maestra' });
 route('m/vendedores', { title: 'Vendedores', icon: '🤝', render: mVendedores, group: 'maestra' });
 route('m/reportes', { title: 'Reportes', icon: '📊', render: mReportes, group: 'maestra' });
@@ -187,7 +193,9 @@ function showWorkspaceChooser() {
 function buildNav(group) {
   const nav = $('#nav-menu');
   nav.innerHTML = getRoutes(group)
-    .filter(([, def]) => def.icon) // estado-cuenta también se muestra (tiene icono)
+    // `hidden`: ruta navegable pero fuera de TODO menú (p.ej. estado-cuenta).
+    // `hideInMenu`: oculta solo en ciertos grupos (p.ej. Sobre fuera del menú de admin).
+    .filter(([, def]) => def.icon && !def.hidden && !(def.hideInMenu || []).includes(group))
     .map(([path, def]) => {
       const ic = NAV_ICONS[path];
       const icono = ic ? iconChip(ic.name, ic.color) : `<span>${def.icon}</span>`;

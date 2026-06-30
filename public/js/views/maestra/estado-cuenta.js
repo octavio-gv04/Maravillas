@@ -71,6 +71,19 @@ export function render(container) {
         <div class="flex items-center gap-2">${ec.adelantado ? badge('green', 'Adelantado') : estadoBadge(ec.estado)} ${btnGhost(`${svgIcon('download', 'w-4 h-4 inline')} CSV`, 'id="csv"')}</div>
       </div>
 
+      ${c.lotes.length ? card(`
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+          <div class="flex items-center gap-2 text-sm">
+            ${svgIcon('envelope', 'w-4 h-4 text-cyan-500')}
+            <span class="font-medium">Revisión de sobre físico</span>
+            <span class="text-gray-400 hidden sm:inline">— captura mes a mes lo que dice el sobre</span>
+          </div>
+          <div class="flex gap-2 flex-wrap">
+            ${c.lotes.map((l) => btnGhost(`Revisar sobre ${esc(l)}`, `data-sobre="${esc(l)}"`)).join('')}
+          </div>
+        </div>
+      `, 'mb-4') : ''}
+
       <div class="grid md:grid-cols-2 gap-4">
         ${card(`
           <h3 class="font-semibold mb-2">Resumen financiero</h3>
@@ -139,6 +152,8 @@ export function render(container) {
 
     container.querySelector('#back').addEventListener('click', () => navigate('m/clientes'));
     container.querySelector('#csv').addEventListener('click', () => exportarCSV(ec));
+    container.querySelectorAll('[data-sobre]').forEach((b) =>
+      b.addEventListener('click', () => navigate('sobres', { lote: b.dataset.sobre })));
     container.querySelector('#nota-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const texto = e.target.texto.value.trim();
