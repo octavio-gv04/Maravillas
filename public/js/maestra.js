@@ -121,7 +121,7 @@ function retrasoDerivado({ inicioMes, mens, precio, enganche, totalPagado, hoy =
   if (mens <= 0) return 0;
   const debe = Math.max(0, precio - totalPagado);
   if (debe <= 0.01) return 0;
-  const transc = inicioMes && inicioMes.length >= 7 ? Math.max(0, mesesEntre(inicioMes + '-01', hoy)) : 0;
+  const transc = mensualidadesExigibles(inicioMes, hoy);
   const esperado = Math.min(precio, enganche + mens * transc);
   const deficit = Math.max(0, esperado - totalPagado);
   const retr = Math.ceil(deficit / mens - 1e-9);
@@ -328,7 +328,7 @@ function estadoDeCuenta(c) {
   // --- ¿Va adelantado? Comparar lo pagado contra lo exigible por el tiempo transcurrido ---
   // "Monto del plazo transcurrido" = enganche + mensualidad × meses desde el inicio.
   const inicio = (fechaEnganche || (ctr && ctr.fechaFirma) || c.primerPago || '').slice(0, 7);
-  const mesesTranscurridos = inicio ? Math.max(0, mesesEntre(inicio + '-01', todayISO())) : 0;
+  const mesesTranscurridos = mensualidadesExigibles(inicio);
   const montoEsperado = Math.min(c.precio, c.enganche + mensualidad * mesesTranscurridos);
   const excedenteAdelanto = Math.max(0, c.totalPagado - montoEsperado);
   const adelantoMeses = mensualidad > 0 ? excedenteAdelanto / mensualidad : 0;
@@ -369,6 +369,18 @@ function mesesEntre(aISO, bISO) {
   const [ay, am] = aISO.split('-').map(Number);
   const [by, bm] = bISO.split('-').map(Number);
   return (by - ay) * 12 + (bm - am);
+}
+
+/**
+ * Mensualidades EXIGIBLES a la fecha (para atraso / vencido / "adelantado").
+ * Regla de negocio: la mensualidad del mes EN CURSO NO se exige ni cuenta como
+ * vencida hasta que el mes termina y "brinca" al siguiente. `mesesEntre` ya
+ * incrementa el conteo el día 1 del mes corriente, así que se descuenta 1 para
+ * dejar fuera el mes en curso.
+ */
+function mensualidadesExigibles(inicioMes, hoy = todayISO()) {
+  if (!inicioMes || inicioMes.length < 7) return 0;
+  return Math.max(0, mesesEntre(inicioMes + '-01', hoy) - 1);
 }
 
 /**
