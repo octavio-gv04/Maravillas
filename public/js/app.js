@@ -31,6 +31,7 @@ import { render as sobres } from './views/captura/sobres.js';
 
 // --- Vistas de la Base de Datos Maestra (Etapa 3) ---
 import { render as mDashboard } from './views/maestra/dashboard.js';
+import { render as mGeneral } from './views/maestra/general.js';
 import { render as mClientes } from './views/maestra/clientes.js';
 import { render as mLotes } from './views/maestra/lotes.js';
 import { render as mContratos } from './views/maestra/contratos.js';
@@ -58,6 +59,8 @@ route('historial', { title: 'Historial', icon: '🕑', render: historial, group:
 route('morosos', { title: 'Morosos', icon: '💳', render: morosos, group: 'captura' });
 
 route('m/dashboard', { title: 'Dashboard', icon: '🏠', render: mDashboard, group: 'maestra' });
+// Vista General: la "vista de pájaro" de toda la etapa (réplica de la hoja GENERAL).
+route('m/general', { title: 'General', icon: '🗂️', render: mGeneral, group: 'maestra' });
 route('m/clientes', { title: 'Clientes', icon: '👥', render: mClientes, group: 'maestra' });
 // Revisión de Sobres: conciliación mes a mes del sobre físico (corrige historial
 // y recalcula atraso). Disponible para ambos roles (captura y maestra/admin).
