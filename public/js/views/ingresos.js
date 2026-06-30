@@ -10,7 +10,7 @@ import { money, prettyDate, todayISO, esc, toNum, toast, confirmAction, formatMo
 import { card, btn, btnGhost, field, select, textarea, sectionHead, empty, badge, cardTitle, actionBtn, monthNav, wireMonthNav } from '../ui.js';
 import { svgIcon } from '../icons.js';
 import { can, isCapturista } from '../auth.js';
-import { catalogoCaptura, keyOf, registrarVentaLote } from '../maestra.js';
+import { catalogoCaptura, keyOf, registrarVentaLote, revertirVentaLote } from '../maestra.js';
 import { imprimirComprobante } from '../recibo.js';
 
 export function render(container) {
@@ -347,11 +347,29 @@ export function render(container) {
       }));
 
     container.querySelectorAll('[data-del]').forEach((b) =>
-      b.addEventListener('click', () => {
-        if (confirmAction('¿Eliminar este ingreso? Esta acción no se puede deshacer.')) {
-          ingresos.remove(b.dataset.del);
-          toast('Ingreso eliminado', 'warn');
-        }
+      b.addEventListener('click', async () => {
+        const it = ingresos.all().find((x) => x.id === b.dataset.del);
+        if (!it) return;
+        // ¿Es la venta que dio de alta el lote? Solo se libera el lote si, al quitar
+        // este ingreso, NO le quedan otros pagos asociados (no romper historial).
+        const esVentaCat = it.lote && CAT_VENTA_LOTE.some((c) => c.toLowerCase() === String(it.categoria).trim().toLowerCase());
+        const otrosPagos = esVentaCat && ingresos.all().some((x) => x.id !== it.id && keyOf(x.lote) === keyOf(it.lote));
+        const liberaLote = esVentaCat && !otrosPagos;
+        const msg = liberaLote
+          ? `¿Eliminar esta venta y LIBERAR el lote ${it.lote}? Volverá a Disponible. Esta acción no se puede deshacer.`
+          : '¿Eliminar este ingreso? Esta acción no se puede deshacer.';
+        if (!confirmAction(msg)) return;
+        try {
+          await ingresos.remove(it.id);
+          if (liberaLote) {
+            const r = await revertirVentaLote(it.lote);
+            if (r?.action === 'delete') toast(`Venta eliminada · lote ${r.numero} quitado`, 'warn');
+            else if (r?.action === 'free') toast(`Venta eliminada · lote ${r.numero} liberado (Disponible)`, 'warn');
+            else toast('Ingreso eliminado', 'warn');
+          } else {
+            toast(esVentaCat ? 'Ingreso eliminado · el lote conserva otros pagos, no se liberó' : 'Ingreso eliminado', 'warn');
+          }
+        } catch (err) { toast('Error: ' + err.message, 'error'); }
       }));
 
     wireMonthNav(container, mes, (m) => { mes = m; page = 0; redrawTable(); });

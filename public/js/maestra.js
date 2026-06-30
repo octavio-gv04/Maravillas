@@ -640,6 +640,27 @@ export async function registrarVentaLote({
 }
 
 /**
+ * Revierte la venta de un lote (al BORRAR el ingreso que la originó). Si el lote
+ * lo creó el Diario (`origen: 'diario'`) se elimina; si venía del catálogo (Excel)
+ * se regresa a Disponible y se limpian los datos del comprador. Solo debe llamarse
+ * cuando el lote ya NO tiene otros pagos asociados (lo verifica quien la invoca).
+ */
+export async function revertirVentaLote(loteClave) {
+  const lk = keyOf(loteClave);
+  const l = lotes.all().find((x) => keyOf(x.numero) === lk);
+  if (!l) return null;
+  if (ci(l.origen, 'diario')) {
+    await lotes.remove(l.id);
+    return { action: 'delete', numero: l.numero };
+  }
+  await lotes.update(l.id, {
+    estado: 'Disponible', cliente: '', vendedor: '',
+    fechaVenta: '', telefono: '', email: '',
+  });
+  return { action: 'free', numero: l.numero };
+}
+
+/**
  * Información de un lote para una DEVOLUCIÓN: estado/venta, cliente, cuánto ha
  * pagado, saldo y comisión pagada (maestro + Diario). Alimenta el banner del
  * formulario de Devolución (igual que el de disponibilidad en Venta).
