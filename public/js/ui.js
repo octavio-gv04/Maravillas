@@ -76,15 +76,18 @@ export function textarea({ label, name, value = '', rows = 2 }) {
 }
 
 /** Etiqueta de estado con semaforo. */
+// Estado en TEXTO DE COLOR (mismo estilo que la Vista General): sin píldora ni
+// puntito. El rojo va en negrita para que resalte (igual que "Moroso" en General).
 export function badge(color, label) {
   const map = {
-    green: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
-    red: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
-    yellow: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+    green: 'text-green-600',
+    red: 'text-red-600 font-medium',
+    yellow: 'text-amber-600',
+    amber: 'text-amber-600',
+    blue: 'text-blue-600',
+    gray: 'text-gray-400',
   };
-  return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${map[color]}">
-            <span class="dot dot-${color}"></span>${esc(label)}
-          </span>`;
+  return `<span class="${map[color] || 'text-gray-500'}">${esc(label)}</span>`;
 }
 
 /**

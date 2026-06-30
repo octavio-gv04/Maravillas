@@ -18,6 +18,17 @@
 /* Tabla responsive: en pantallas chicas permite scroll horizontal sin romper layout */
 .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
+/* Formato unificado de tablas (réplica de la Vista General) en TODA la app.
+   Aplica a cualquier tabla dentro de .table-wrap: mismo espaciado de celdas,
+   filas de una sola línea (scroll horizontal si hace falta, como en General) y
+   resaltado al pasar el cursor. Respeta la alineación (text-right) y los colores
+   que cada tabla define inline, porque solo fija padding / white-space / hover. */
+.table-wrap th,
+.table-wrap td { padding: .5rem .75rem; white-space: nowrap; }
+.table-wrap thead th { font-weight: 500; }
+.table-wrap tbody tr { transition: background-color .12s ease; }
+.table-wrap tbody tr:hover { background: rgba(120,120,120,.08); }
+
 /* Animacion de entrada de toasts */
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(8px); }

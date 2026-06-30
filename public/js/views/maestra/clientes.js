@@ -7,14 +7,18 @@
 import { subscribe } from '../../store.js';
 import { clientes, etapaActiva, etapaBar, wireEtapaBar } from '../../maestra.js';
 import { money, esc, prettyDate } from '../../utils.js';
-import { card, badge, empty, sectionHead } from '../../ui.js';
+import { card, empty, sectionHead } from '../../ui.js';
 import { navigate } from '../../router.js';
 
-const estadoBadge = (estado) => ({
-  Liquidado: badge('green', 'Liquidado'),
-  Activo: badge('green', 'Al corriente'),
-  Moroso: badge('red', 'Moroso'),
-}[estado] || badge('yellow', estado));
+// Estado en texto de color (mismo estilo que la columna Estado de Vista General):
+// verde "Al corriente" / rojo "Moroso · N m" (con los meses de atraso) / verde "Liquidado".
+const estadoBadge = (estado, atrasoMeses = 0) => {
+  if (estado === 'Moroso') {
+    return `<span class="text-red-600 font-medium">Moroso${atrasoMeses > 0 ? ` · ${atrasoMeses} m` : ''}</span>`;
+  }
+  const label = { Activo: 'Al corriente', Liquidado: 'Liquidado' }[estado] || estado;
+  return `<span class="text-green-600">${esc(label)}</span>`;
+};
 
 export function render(container) {
   let q = '', fEstado = '', fVendedor = '';
@@ -45,25 +49,30 @@ export function render(container) {
         </select>
       </div>
       ${list.length ? card(`
-        <div class="table-wrap"><table class="w-full text-sm">
-          <thead class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-700">
+        <div class="table-wrap" style="overflow:auto"><table class="w-full text-sm">
+          <thead class="text-gray-500 border-b border-gray-200 dark:border-gray-700">
             <tr>
-              <th class="py-2">Cliente</th><th>Lote(s)</th><th>Vendedor</th>
-              <th class="text-right">Pagado</th><th class="text-right">Saldo</th>
-              <th>Estado</th><th>Últ. pago</th><th></th>
+              <th class="px-3 py-2 font-medium text-left">Cliente</th>
+              <th class="px-3 py-2 font-medium text-left">Lote(s)</th>
+              <th class="px-3 py-2 font-medium text-left">Vendedor</th>
+              <th class="px-3 py-2 font-medium text-right">Pagado</th>
+              <th class="px-3 py-2 font-medium text-right">Saldo</th>
+              <th class="px-3 py-2 font-medium text-left">Estado</th>
+              <th class="px-3 py-2 font-medium text-left">Últ. pago</th>
+              <th class="px-3 py-2"></th>
             </tr>
           </thead>
           <tbody>
             ${list.map((c) => `
               <tr class="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30 cursor-pointer" data-k="${esc(c.key)}">
-                <td class="py-2 font-medium">${esc(c.nombre)}</td>
-                <td class="text-gray-500">${esc(c.lotes.join(', ') || '—')}</td>
-                <td class="text-gray-500">${esc(c.vendedor || '—')}</td>
-                <td class="text-right tabular-nums text-green-600">${money(c.totalPagado)}</td>
-                <td class="text-right tabular-nums ${c.saldo > 0.01 ? 'text-red-600 font-medium' : 'text-gray-400'}">${money(c.saldo)}</td>
-                <td>${estadoBadge(c.estado)}</td>
-                <td class="text-gray-500">${c.ultimoPago ? prettyDate(c.ultimoPago) : '—'}</td>
-                <td class="text-right text-brand">Ver →</td>
+                <td class="px-3 py-2 whitespace-nowrap font-medium">${esc(c.nombre)}</td>
+                <td class="px-3 py-2 whitespace-nowrap text-gray-500">${esc(c.lotes.join(', ') || '—')}</td>
+                <td class="px-3 py-2 whitespace-nowrap text-gray-500">${esc(c.vendedor || '—')}</td>
+                <td class="px-3 py-2 whitespace-nowrap text-right tabular-nums text-green-600">${money(c.totalPagado)}</td>
+                <td class="px-3 py-2 whitespace-nowrap text-right tabular-nums ${c.saldo > 0.01 ? 'text-red-600 font-medium' : 'text-gray-400'}">${money(c.saldo)}</td>
+                <td class="px-3 py-2 whitespace-nowrap">${estadoBadge(c.estado, c.atrasoMeses)}</td>
+                <td class="px-3 py-2 whitespace-nowrap text-gray-500">${c.ultimoPago ? prettyDate(c.ultimoPago) : '—'}</td>
+                <td class="px-3 py-2 whitespace-nowrap text-right text-brand">Ver →</td>
               </tr>`).join('')}
           </tbody>
         </table></div>

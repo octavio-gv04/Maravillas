@@ -16,7 +16,8 @@ import { can } from '../../auth.js';
 import { catalogoCaptura } from '../../maestra.js';
 import { ESTADOS_LOTE, VENDEDORES } from '../../config.js';
 
-const colorEstado = (e) => ({ Disponible: 'green', Apartado: 'yellow', Vendido: 'red', Inactivo: 'yellow', Cancelado: 'yellow' }[e] || 'yellow');
+// Mismos colores que la Vista General y que el mapa (tileBg): texto de color.
+const colorEstado = (e) => ({ Disponible: 'green', Vendido: 'blue', Apartado: 'yellow', Inactivo: 'gray', Cancelado: 'red' }[e] || 'gray');
 const tileBg = (e) => ({ Disponible: 'bg-green-500', Apartado: 'bg-amber-500', Vendido: 'bg-blue-600', Inactivo: 'bg-gray-300 dark:bg-gray-600', Cancelado: 'bg-gray-400' }[e] || 'bg-gray-300');
 const loteNum = (clave) => String(clave).replace(/^M\d+-?L?/i, '') || clave;
 // "Seleccionar" es el placeholder de vendedor del Excel para lotes sin vender.

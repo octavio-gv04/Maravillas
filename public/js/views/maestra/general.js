@@ -8,7 +8,7 @@
  */
 
 import { subscribe } from '../../store.js';
-import { lotesResumen, cobranza, etapaActiva, etapaBar, wireEtapaBar } from '../../maestra.js';
+import { lotesResumen, lotesCliente, cobranza, etapaActiva, etapaBar, wireEtapaBar, keyOf } from '../../maestra.js';
 import { money, esc, prettyDate, toast } from '../../utils.js';
 import { card, empty, btn, btnGhost, sectionHead } from '../../ui.js';
 import { svgIcon } from '../../icons.js';
@@ -18,21 +18,26 @@ const low = (s) => String(s ?? '').trim().toLowerCase();
 const cleanVend = (v) => (!v || /^seleccionar$/i.test(String(v).trim())) ? '' : v;
 const tel = (t) => (t && t !== 'Sin Registro') ? t : '';
 
-const estadoBadge = (e) => {
-  const m = {
-    Vendido: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
-    Disponible: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
-    Apartado: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
-    Inactivo: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
-    Cancelado: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
-  };
-  return `<span class="inline-block px-2 py-0.5 rounded-full text-xs font-medium ${m[e] || m.Inactivo}">${esc(e || '—')}</span>`;
+// Son DOS cosas distintas, en dos columnas:
+//  • Estado del LOTE (la venta): Vendido / Disponible / Apartado / Cancelado / Inactivo.
+//  • Cobranza del CLIENTE: Al corriente / Moroso · N m (solo si está vendido).
+// Ambas en texto de color (estilo de General). "Vendido" en azul para no confundirlo
+// con el verde de "Al corriente".
+const estadoLoteCell = (l) => {
+  const cls = { vendido: 'text-blue-600', disponible: 'text-green-600', apartado: 'text-amber-600', cancelado: 'text-red-600', inactivo: 'text-gray-400' }[low(l.estado)] || 'text-gray-400';
+  return `<span class="${cls}">${esc(l.estado || '—')}</span>`;
+};
+const cobranzaCell = (l) => {
+  if (low(l.estado) !== 'vendido') return '<span class="text-gray-400">—</span>';
+  return l.retrasoMeses > 0
+    ? `<span class="text-red-600 font-medium">Moroso · ${l.retrasoMeses} m</span>`
+    : '<span class="text-green-600">Al corriente</span>';
 };
 
 // Columnas de la tabla maestra. `full: true` solo se muestran con "Ver todas".
 const COLS = [
   { key: 'numero', label: 'Clave', sticky: true, cell: (l) => `<span class="font-mono text-xs">${esc(l.numero)}</span>` },
-  { key: 'estado', label: 'Estado', cell: (l) => estadoBadge(l.estado) },
+  { key: 'estado', label: 'Estado', cell: (l) => estadoLoteCell(l) },
   { key: 'cliente', label: 'Cliente', cell: (l) => esc(l.cliente || '—') },
   { key: 'vendedor', label: 'Vendedor', muted: true, cell: (l) => esc(cleanVend(l.vendedor) || '—') },
   { key: 'tipo', label: 'Tipo', full: true, muted: true, cell: (l) => esc(l.tipo || '—') },
@@ -43,10 +48,8 @@ const COLS = [
   { key: 'abonado', label: 'Pagó', align: 'right', cls: 'text-green-600', cell: (l) => money(l.abonado) },
   { key: 'saldo', label: 'Debe', align: 'right', cell: (l) => `<span class="${l.saldo > 0.01 ? 'text-red-600 font-medium' : 'text-gray-400'}">${money(l.saldo)}</span>` },
   { key: 'mensualidad', label: 'Mens.', align: 'right', cell: (l) => l.mensualidad ? money(l.mensualidad) : '—' },
+  { key: 'cobranza', label: 'Cobranza', cell: (l) => cobranzaCell(l) },
   { key: 'plazo', label: 'Plazo', full: true, align: 'right', muted: true, cell: (l) => l.plazo ? esc(l.plazo) : '—' },
-  { key: 'atraso', label: 'Atraso', cell: (l) => l.retrasoMeses > 0
-      ? `<span class="text-red-600">${l.retrasoMeses} m</span>`
-      : (low(l.estado) === 'vendido' ? '<span class="text-green-600">Al corriente</span>' : '<span class="text-gray-400">—</span>') },
   { key: 'comisionPct', label: '% Com.', full: true, align: 'right', muted: true, cell: (l) => l.comisionPct ? l.comisionPct + '%' : '—' },
   { key: 'tipoPago', label: 'Pago', full: true, muted: true, cell: (l) => esc(l.tipoPago || '—') },
   { key: 'fechaVenta', label: 'Venta', full: true, muted: true, cell: (l) => l.fechaVenta ? prettyDate(l.fechaVenta) : '—' },
@@ -68,7 +71,17 @@ export function render(container) {
 
   const draw = () => {
     const filas = lotesResumen();
-    const cob = cobranza();
+    const cob = cobranza();   // Vencido = déficit en pesos por lote (criterio del Excel)
+
+    // El atraso de la columna Cobranza debe ser el COMPUTADO (igual que Morosos:
+    // resta pagos del Diario y aplica el criterio del mes en curso), NO el campo
+    // crudo `retrasoMeses` del Excel. Lo inyectamos por lote para que la celda y el
+    // CSV queden consistentes con el resto del sistema.
+    const atrasoComputado = new Map(lotesCliente().map((l) => [keyOf(l.lote), l.atrasoMeses]));
+    filas.forEach((f) => {
+      const a = atrasoComputado.get(keyOf(f.numero));
+      if (a !== undefined) f.retrasoMeses = a;
+    });
 
     // Resumen de la etapa (deriva de los mismos datos, garantiza consistencia).
     const vendidos = filas.filter((l) => low(l.estado) === 'vendido');
