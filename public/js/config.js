@@ -163,7 +163,7 @@ export const ESTADOS_CORTE = ['Pendiente', 'Conciliado', 'Con diferencia'];
 // Roles y permisos basicos del MVP.
 export const ROLES = {
   admin: { label: 'Administrador', can: ['ver', 'crear', 'editar', 'eliminar', 'revisar'] },
-  capturista: { label: 'Capturista', can: ['ver', 'crear', 'editar'] },
+  capturista: { label: 'Capturista', can: ['ver', 'crear', 'editar', 'eliminar'] },
   supervisor: { label: 'Supervisor', can: ['ver', 'revisar'] },
 };
 

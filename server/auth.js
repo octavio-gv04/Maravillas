@@ -83,7 +83,7 @@ export function requireAuth(req, res, next) {
 /** Exige un permiso del rol. */
 const PERMS = {
   admin: ['ver', 'crear', 'editar', 'eliminar', 'revisar'],
-  capturista: ['ver', 'crear', 'editar'],
+  capturista: ['ver', 'crear', 'editar', 'eliminar'],
   supervisor: ['ver', 'revisar'],
 };
 export const requirePerm = (perm) => (req, res, next) => {
