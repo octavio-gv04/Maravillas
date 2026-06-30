@@ -143,20 +143,22 @@ function calcLote(l, live, hist, sobs) {
   const mens = toNum(l.mensualidad);
   const sob = sobs ? sobs.get(lk) : null;
 
-  // Lote con SOBRE REVISADO: el total y el atraso se derivan de la itemización
-  // real (enganche + abonos por mes + ajuste) y de la línea de tiempo, NO del
-  // snapshot del Excel (que quedó inconsistente).
+  // Lote con SOBRE REVISADO: el sobre guarda el TOTAL verificado (lo que el cliente
+  // físicamente ha pagado, según su sobre). Ese total es la VERDAD del lote: de ahí
+  // salen saldo y atraso (vs la línea de tiempo). Los pagos del Diario son solo para
+  // el corte de caja y NO se vuelven a sumar aquí (evita doble conteo).
   if (sob) {
     const precio = toNum(l.precio);
-    const eng = toNum(sob.enganche ?? l.enganche);
-    const sumMeses = sum(sob.meses || [], (m) => m.monto);
-    const ajuste = toNum(sob.ajuste);
-    const pago = eng + sumMeses + ajuste + extra;
+    const eng = toNum(l.enganche);                 // enganche contratado (para el "esperado")
+    // Total verificado del sobre. Compat: sobres viejos traían meses + ajuste.
+    const total = sob.total != null
+      ? toNum(sob.total)
+      : toNum(sob.enganche ?? l.enganche) + sum(sob.meses || [], (m) => m.monto) + toNum(sob.ajuste);
+    const pago = total;
     const debe = Math.max(0, precio - pago);
     const inicioMes = (sob.inicio || (sob.fechaEnganche || '').slice(0, 7) || '');
     const retr = retrasoDerivado({ inicioMes, mens, precio, enganche: eng, totalPagado: pago });
-    let ultimo = sob.fechaEnganche || '';
-    for (const m of (sob.meses || [])) if (toNum(m.monto) > 0 && (m.periodo || '') + '-01' > ultimo) ultimo = (m.periodo || '') + '-01';
+    let ultimo = sob.fecha || sob.fechaEnganche || '';
     for (const p of liveL) if ((p.fecha || '') > ultimo) ultimo = p.fecha;
     return { mens, pago, debe, retr, ultimo, revisado: true };
   }
@@ -303,7 +305,11 @@ function estadoDeCuenta(c) {
   const hist = [];
   for (const k of claves) {
     const sob = sobs.get(k);
-    if (sob) {
+    if (sob && sob.total != null) {
+      // Sobre "solo total": una sola línea con el total verificado (no hay detalle mensual).
+      hist.push({ fecha: sob.fecha || sob.fechaEnganche || '', categoria: 'Sobre (total verificado)', lote: sob.lote, monto: toNum(sob.total), metodo: 'Sobre', recibo: '', origen: 'Sobre' });
+    } else if (sob) {
+      // Compat: sobres viejos con itemización mensual.
       if (toNum(sob.enganche) > 0) hist.push({ fecha: sob.fechaEnganche || '', categoria: 'Enganche', lote: sob.lote, monto: toNum(sob.enganche), metodo: 'Sobre', recibo: '', origen: 'Sobre' });
       for (const m of (sob.meses || [])) if (toNum(m.monto) > 0) hist.push({ fecha: (m.periodo || '') + '-01', categoria: 'Abono', lote: sob.lote, monto: toNum(m.monto), metodo: 'Sobre', recibo: m.recibo || '', origen: 'Sobre' });
       if (toNum(sob.ajuste) > 0) hist.push({ fecha: sob.fechaEnganche || '', categoria: 'Ajuste', lote: sob.lote, monto: toNum(sob.ajuste), metodo: 'Sobre', recibo: '', origen: 'Sobre' });
@@ -408,6 +414,22 @@ function calendarioPagos(c, pagos, mensualidad, mesesRestantes) {
 }
 
 // ---------- Cobranza ----------
+// "Vencido" en PESOS = el faltante REAL a la fecha: lo esperado (enganche +
+// mensualidad × meses exigibles, SIN contar el mes en curso) menos lo pagado.
+// NO son meses redondeados × mensualidad (eso inflaba el número). Coincide con el
+// criterio del Excel: suma del déficit de cada cuenta "Con Deuda".
+const vencidoPesos = (ec) => ec
+  ? Math.max(0, Math.min(ec.precioTotal, ec.enganche + ec.mensualidad * ec.mesesTranscurridos) - ec.totalPagado)
+  : 0;
+
+// Total "Vencido" en pesos, sumado POR LOTE (cada lote con su propio déficit, sin
+// netear contra otros lotes del mismo cliente). Es el mismo criterio del Excel y la
+// única fuente de verdad para todas las vistas (General, Cobranza, Morosos, Dashboard).
+// Llama a estadoDeCuenta() directo sobre cada fila (no estadoCuentaLote, que
+// reconstruía toda la lista en cada llamada → O(n²)).
+const vencidoTotalPorLote = () =>
+  sum(lotesCliente().filter((l) => l.saldo > 0.01), (l) => vencidoPesos(estadoDeCuenta(l)));
+
 export function cobranza() {
   const conSaldo = clientes().filter((c) => c.saldo > 0.01);
   const segmentos = AGING_BUCKETS.map((b) => {
@@ -418,7 +440,7 @@ export function cobranza() {
   return {
     segmentos,
     totalCartera: sum(conSaldo, (c) => c.saldo),
-    porCobrarVencido: sum(morosos, (c) => c.saldo),
+    porCobrarVencido: vencidoTotalPorLote(),
     clientesConSaldo: conSaldo.length, morosos: morosos.length,
   };
 }
@@ -437,7 +459,7 @@ export function cobranzaPorLote() {
   return {
     segmentos,
     totalCartera: sum(conSaldo, (c) => c.saldo),
-    porCobrarVencido: sum(morosos, (c) => c.saldo),
+    porCobrarVencido: vencidoTotalPorLote(),
     clientesConSaldo: conSaldo.length, morosos: morosos.length,
   };
 }
@@ -783,8 +805,15 @@ export function gridSobre(loteClave) {
     etapa: l.etapa || _etapa,
     mensualidad: mens, precio, enganche, fechaEnganche,
     inicio: startMes, corte,
-    totalConciliado: toNum(l.pago),                       // total que confía hoy el sistema
+    totalConciliado: toNum(l.pago),                       // total que confía hoy el sistema (data)
     abonadoConciliado: Math.max(0, toNum(l.pago) - enganche),
+    // Total verificado ya guardado del sobre (para precargar el campo). Compat con
+    // sobres viejos que traían meses + ajuste.
+    totalSobre: existente
+      ? (existente.total != null
+          ? toNum(existente.total)
+          : toNum(existente.enganche ?? enganche) + sum(existente.meses || [], (m) => m.monto) + toNum(existente.ajuste))
+      : null,
     periodos, sobre: existente || null,
     revisado: !!existente,
   };

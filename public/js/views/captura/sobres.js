@@ -15,20 +15,17 @@
 
 import { subscribe, sobres as sobresStore } from '../../store.js';
 import { lotesCliente, gridSobre, revisionSobresResumen } from '../../maestra.js';
-import { money, esc, toNum, todayISO, prettyDate, toast } from '../../utils.js';
+import { money, esc, toNum, todayISO, toast } from '../../utils.js';
 import { card, badge, empty, sectionHead, btn, btnGhost } from '../../ui.js';
 import { getSession } from '../../auth.js';
-
-const mesLabel = (ym) => {
-  const s = new Date(ym + '-01T00:00:00').toLocaleDateString('es-MX', { month: 'short', year: 'numeric' });
-  return s.charAt(0).toUpperCase() + s.slice(1);
-};
+import { queryParam } from '../../router.js';
 
 export function render(container) {
   let q = '';
   let filtro = 'pendientes';   // pendientes | revisados | todos
-  let selLote = '';            // lote en edición (vacío = lista)
-  let saveMode = 'conservar';  // conservar | adoptar (cuando hay diferencia)
+  // `?lote=` abre directo en el editor de ese lote (botón desde el Estado de
+  // cuenta del cliente). Sin parámetro, arranca en la lista.
+  let selLote = queryParam('lote') || '';   // lote en edición (vacío = lista)
 
   const draw = () => { selLote ? drawEditor() : drawLista(); };
 
@@ -96,21 +93,14 @@ export function render(container) {
     });
   }
 
-  // ---------------- EDITOR ----------------
+  // ---------------- EDITOR (solo total del sobre) ----------------
   function drawEditor() {
     const g = gridSobre(selLote);
     if (!g) { selLote = ''; draw(); return; }
 
-    const filas = g.periodos.map((p) => `
-      <tr class="border-b border-gray-100 dark:border-gray-700/50">
-        <td class="py-1.5 whitespace-nowrap">${mesLabel(p.periodo)}</td>
-        <td class="text-right tabular-nums text-gray-400">${g.mensualidad ? money(g.mensualidad) : '—'}</td>
-        <td class="text-right">
-          <input data-mes="${p.periodo}" data-money inputmode="decimal" class="field !w-32 text-right tabular-nums"
-                 value="${p.monto > 0 ? money(p.monto) : ''}" placeholder="$0.00" autocomplete="off" />
-        </td>
-        <td><input data-recibo="${p.periodo}" class="field !w-40" value="${esc(p.recibo || '')}" placeholder="Recibo / nota" autocomplete="off" /></td>
-      </tr>`).join('');
+    // Precarga: el total ya verificado del sobre si existe; si no, lo que tiene el sistema.
+    const sysTotal = g.totalConciliado;
+    const prefill = g.totalSobre != null ? g.totalSobre : sysTotal;
 
     container.innerHTML = `
       ${sectionHead('Revisión de Sobre', btnGhost('← Volver a la lista', 'id="volver"'), 'envelope', 'bg-cyan-500')}
@@ -120,103 +110,60 @@ export function render(container) {
           <div>
             <h2 class="text-xl font-semibold">${esc(g.cliente)}</h2>
             <p class="text-sm text-gray-500">Lote <span class="font-medium text-gray-700 dark:text-gray-200">${esc(g.lote)}</span>
+              · Precio ${money(g.precio)}
               · Mensualidad ${g.mensualidad ? money(g.mensualidad) : '—'}
-              · Enganche ${money(g.enganche)}${g.fechaEnganche ? ` (${prettyDate(g.fechaEnganche)})` : ''}
-              · Corte ${prettyDate(g.corte)}</p>
+              · Enganche ${money(g.enganche)}</p>
           </div>
           ${g.revisado ? badge('green', 'Ya revisado') : badge('yellow', 'Pendiente')}
         </div>
       `)}
 
-      <!-- Resumen de cuadre (en vivo) -->
       ${card(`
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
-          <div><p class="text-[11px] uppercase tracking-wide text-gray-500">Enganche</p><p class="font-semibold tabular-nums">${money(g.enganche)}</p></div>
-          <div><p class="text-[11px] uppercase tracking-wide text-gray-500">Abonos capturados</p><p id="cap-abonos" class="font-semibold tabular-nums">$0.00</p></div>
-          <div><p class="text-[11px] uppercase tracking-wide text-gray-500">Capturado total</p><p id="cap-total" class="font-semibold tabular-nums">${money(g.enganche)}</p></div>
-          <div><p class="text-[11px] uppercase tracking-wide text-gray-500">Total conciliado</p><p class="font-semibold tabular-nums">${money(g.totalConciliado)}</p></div>
+        <h3 class="font-semibold mb-1">Total del sobre</h3>
+        <p class="text-sm text-gray-500 mb-3">Escribe el <strong>total</strong> que el cliente trae pagado según su sobre físico (incluye enganche y todos los abonos). El sistema ajusta el saldo y el atraso con ese número.</p>
+        <div class="grid sm:grid-cols-2 gap-4 items-start">
+          <label class="block">
+            <span class="text-[11px] uppercase tracking-wide text-gray-500">Total pagado (sobre)</span>
+            <input id="sobre-total" data-money inputmode="decimal" class="field text-right tabular-nums text-lg mt-1"
+                   value="${prefill ? money(prefill) : ''}" placeholder="$0.00" autocomplete="off" />
+          </label>
+          <div class="text-sm space-y-1 sm:pt-5">
+            <div class="flex justify-between gap-4"><span class="text-gray-500">El sistema tiene registrado</span><span class="tabular-nums">${money(sysTotal)}</span></div>
+            <div class="flex justify-between gap-4"><span class="text-gray-500">Diferencia</span><span id="dif" class="tabular-nums font-medium">—</span></div>
+            <div class="flex justify-between gap-4 border-t border-gray-200 dark:border-gray-700 pt-1 mt-1"><span class="text-gray-500">Saldo resultante</span><span id="saldo-res" class="tabular-nums font-medium">—</span></div>
+          </div>
         </div>
-        <div id="dif-banner" class="mt-3 rounded-lg px-3 py-2 text-sm hidden"></div>
-        <div id="modo-box" class="mt-3 hidden text-sm">
-          <p class="font-medium mb-1">Hay una diferencia. Al guardar:</p>
-          <label class="flex items-center gap-2 mb-1"><input type="radio" name="modo" value="conservar" checked /> Conservar el total anterior <span id="m-conservar" class="text-gray-500"></span></label>
-          <label class="flex items-center gap-2"><input type="radio" name="modo" value="adoptar" /> Adoptar el total del sobre <span id="m-adoptar" class="text-gray-500"></span></label>
-        </div>
-      `, 'border-2 border-cyan-200 dark:border-cyan-800')}
-
-      ${card(`
-        <h3 class="font-semibold mb-2">Pagos mes a mes (según el sobre)</h3>
-        <div class="table-wrap" style="max-height:480px;overflow-y:auto"><table class="w-full text-sm">
-          <thead class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800">
-            <tr><th class="py-2">Mes</th><th class="text-right">Mensualidad</th><th class="text-right">Pagado (sobre)</th><th>Recibo / nota</th></tr>
-          </thead>
-          <tbody>${filas || '<tr><td colspan="4" class="py-3 text-gray-400">Sin meses en el rango</td></tr>'}</tbody>
-        </table></div>
-        <div class="flex gap-2 mt-3 flex-wrap">
+        <div class="flex gap-2 mt-4 flex-wrap">
           ${btn('Guardar revisión', 'id="guardar"')}
-          ${g.mensualidad ? btnGhost('Llenar vacíos con la mensualidad', 'id="llenar"') : ''}
           ${btnGhost('Cancelar', 'id="cancelar"')}
         </div>
-        <p class="text-xs text-gray-400 mt-2">Captura el monto realmente pagado cada mes (0 o vacío si ese mes no pagó). Al guardar se recalcula el atraso del lote.</p>
-      `)}
+        <p class="text-xs text-gray-400 mt-2">Al guardar, este total se vuelve la verdad del lote: se recalcula el saldo y el atraso. Los pagos del Diario siguen siendo solo para el corte de caja.</p>
+      `, 'border-2 border-cyan-200 dark:border-cyan-800')}
     `;
 
-    const fmt = (n) => money(n);
-    const leerMeses = () => container.querySelectorAll('[data-mes]');
+    const input = container.querySelector('#sobre-total');
     const recompute = () => {
-      let sumAbonos = 0;
-      leerMeses().forEach((i) => { sumAbonos += toNum(i.value); });
-      const capTotal = g.enganche + sumAbonos;
-      const dif = Math.round((g.totalConciliado - capTotal) * 100) / 100;
-      container.querySelector('#cap-abonos').textContent = fmt(sumAbonos);
-      container.querySelector('#cap-total').textContent = fmt(capTotal);
-      const banner = container.querySelector('#dif-banner');
-      const modoBox = container.querySelector('#modo-box');
-      if (Math.abs(dif) < 0.01) {
-        banner.className = 'mt-3 rounded-lg px-3 py-2 text-sm bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300';
-        banner.textContent = '✓ Cuadra con el total conciliado del sistema.';
-        modoBox.classList.add('hidden');
-      } else {
-        const falta = dif > 0;
-        banner.className = 'mt-3 rounded-lg px-3 py-2 text-sm bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300';
-        banner.textContent = `Diferencia de ${fmt(Math.abs(dif))} — ${falta ? 'lo capturado es MENOR que el total conciliado' : 'lo capturado es MAYOR que el total conciliado'}.`;
-        modoBox.classList.remove('hidden');
-        container.querySelector('#m-conservar').textContent = `→ saldo no cambia (${fmt(g.totalConciliado)}); la diferencia ${fmt(dif)} queda como ajuste.`;
-        container.querySelector('#m-adoptar').textContent = `→ el total pasa a ${fmt(capTotal)} y el saldo se recalcula.`;
-      }
+      const total = toNum(input.value);
+      const dif = Math.round((total - sysTotal) * 100) / 100;
+      const difEl = container.querySelector('#dif');
+      difEl.textContent = dif === 0 ? money(0) : (dif > 0 ? '+' : '−') + money(Math.abs(dif));
+      difEl.className = 'tabular-nums font-medium ' + (dif > 0 ? 'text-green-600' : (dif < 0 ? 'text-red-600' : 'text-gray-500'));
+      container.querySelector('#saldo-res').textContent = money(Math.max(0, g.precio - total));
     };
+    input.addEventListener('input', recompute);
+    recompute();
 
-    leerMeses().forEach((i) => i.addEventListener('input', recompute));
-    container.querySelectorAll('input[name="modo"]').forEach((r) =>
-      r.addEventListener('change', () => { saveMode = r.value; }));
     container.querySelector('#volver').addEventListener('click', () => { selLote = ''; draw(); });
     container.querySelector('#cancelar').addEventListener('click', () => { selLote = ''; draw(); });
-    container.querySelector('#llenar')?.addEventListener('click', () => {
-      leerMeses().forEach((i) => { if (toNum(i.value) === 0) i.value = money(g.mensualidad); });
-      recompute();
-    });
     container.querySelector('#guardar').addEventListener('click', () => guardar(g));
-
-    recompute();
   }
 
   async function guardar(g) {
-    const meses = [];
-    container.querySelectorAll('[data-mes]').forEach((i) => {
-      const periodo = i.dataset.mes;
-      const monto = toNum(i.value);
-      const recibo = (container.querySelector(`[data-recibo="${periodo}"]`)?.value || '').trim();
-      if (monto > 0 || recibo) meses.push({ periodo, monto, recibo });
-    });
-    const sumAbonos = meses.reduce((a, m) => a + m.monto, 0);
-    const capTotal = g.enganche + sumAbonos;
-    const dif = Math.round((g.totalConciliado - capTotal) * 100) / 100;
-    const ajuste = (Math.abs(dif) >= 0.01 && saveMode === 'conservar') ? dif : 0;
-
+    const total = toNum(container.querySelector('#sobre-total').value);
     const doc = {
       lote: g.lote, cliente: g.cliente, etapa: g.etapa,
+      total,                                   // total verificado del sobre = verdad del lote
       enganche: g.enganche, fechaEnganche: g.fechaEnganche, inicio: g.inicio,
-      meses, ajuste,
       totalConciliadoPrev: g.totalConciliado,
       revisado: true, fecha: todayISO(), usuario: getSession()?.name || '',
     };
@@ -224,7 +171,7 @@ export function render(container) {
     try {
       if (g.sobre && g.sobre.id) await sobresStore.update(g.sobre.id, doc);
       else await sobresStore.create(doc);
-      toast('Sobre revisado y atraso recalculado', 'success');
+      toast('Sobre revisado · saldo y atraso actualizados', 'success');
       selLote = '';
       draw();
     } catch (err) { toast(err.message || 'No se pudo guardar', 'error'); }
