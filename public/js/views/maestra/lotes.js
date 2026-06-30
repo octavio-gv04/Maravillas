@@ -8,13 +8,13 @@
  */
 
 import { subscribe, lotes } from '../../store.js';
-import { lotesResumen, etapaActiva, keyOf } from '../../maestra.js';
+import { lotesResumen, etapaActiva, keyOf, etapaBar, wireEtapaBar } from '../../maestra.js';
 import { money, esc, toast, confirmAction } from '../../utils.js';
 import { card, badge, empty, btn, btnGhost, sectionHead, field, select, cardTitle } from '../../ui.js';
 import { svgIcon, iconChip } from '../../icons.js';
 import { can } from '../../auth.js';
 import { catalogoCaptura } from '../../maestra.js';
-import { ESTADOS_LOTE, ETAPA_MAESTRA_DEFAULT, VENDEDORES } from '../../config.js';
+import { ESTADOS_LOTE, VENDEDORES } from '../../config.js';
 
 const colorEstado = (e) => ({ Disponible: 'green', Apartado: 'yellow', Vendido: 'red', Inactivo: 'yellow', Cancelado: 'yellow' }[e] || 'yellow');
 const tileBg = (e) => ({ Disponible: 'bg-green-500', Apartado: 'bg-amber-500', Vendido: 'bg-blue-600', Inactivo: 'bg-gray-300 dark:bg-gray-600', Cancelado: 'bg-gray-400' }[e] || 'bg-gray-300');
@@ -91,6 +91,7 @@ export function render(container) {
 
     container.innerHTML = `
       ${sectionHead(`Lotes — ${etapaActiva()}`, puedeEditar && !editing ? btn('+ Nuevo lote', 'id="new"') : '')}
+      ${etapaBar()}
 
       <div class="flex flex-wrap items-center gap-3 text-xs mb-3">
         <div class="flex rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600">
@@ -132,6 +133,7 @@ export function render(container) {
       `)}</div>`}
     `;
 
+    wireEtapaBar(container, () => { editing = null; draw(); });
     container.querySelector('#v-mapa')?.addEventListener('click', () => { vista = 'mapa'; draw(); });
     container.querySelector('#v-tabla')?.addEventListener('click', () => { vista = 'tabla'; draw(); });
     container.querySelector('#f-manz')?.addEventListener('change', (e) => { qManz = e.target.value; draw(); });
@@ -150,7 +152,7 @@ export function render(container) {
         numero: f.numero.value.trim().toUpperCase().replace(/\s+/g, ''), manzana: f.manzana.value.trim().toUpperCase().replace(/\s+/g, ''),
         superficie: f.superficie.value, precio: f.precio.value,
         cliente: f.cliente.value.trim(), vendedor: f.vendedor.value.trim(),
-        estado: f.estado.value, etapa: editing.etapa || ETAPA_MAESTRA_DEFAULT,
+        estado: f.estado.value, etapa: editing.etapa || etapaActiva(),
       };
       try {
         if (editing.id) await lotes.update(editing.id, data);

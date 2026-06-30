@@ -4,8 +4,8 @@
  * periodo donde aplica. Exporta a CSV (PDF/Excel avanzados → Fase 2-4).
  */
 
-import { subscribe, contratos } from '../../store.js';
-import { clientes, cobranza, lotesResumen, pagosEtapa, etapaActiva } from '../../maestra.js';
+import { subscribe } from '../../store.js';
+import { clientes, cobranza, lotesResumen, pagosEtapa, etapaActiva, contratosEtapa, etapaBar, wireEtapaBar } from '../../maestra.js';
 import { money, esc, prettyDate, toast } from '../../utils.js';
 import { card, empty, btn, sectionHead, select } from '../../ui.js';
 import { svgIcon } from '../../icons.js';
@@ -36,7 +36,7 @@ function datos(tipo, desde, hasta) {
   if (tipo === 'Contratos') {
     return {
       head: ['Folio', 'Cliente', 'Lote', 'Firma', 'Precio', 'Enganche', 'Plazo', 'Estado'],
-      rows: contratos.all().map((c) => [c.folio, c.cliente, c.lote, c.fechaFirma, c.precio, c.enganche, c.plazo, c.estado]),
+      rows: contratosEtapa().map((c) => [c.folio, c.cliente, c.lote, c.fechaFirma, c.precio, c.enganche, c.plazo, c.estado]),
       money: [4, 5],
     };
   }
@@ -61,6 +61,7 @@ export function render(container) {
 
     container.innerHTML = `
       ${sectionHead(`Reportes — ${etapaActiva()}`, btn(`${svgIcon('download', 'w-4 h-4 inline')} Exportar CSV`, 'id="csv"'), 'chartBar', 'bg-violet-500')}
+      ${etapaBar()}
       <div class="grid sm:grid-cols-4 gap-2 mb-4">
         ${select({ label: 'Tipo de reporte', name: 'tipo', options: TIPOS, value: tipo })}
         ${d.periodo ? `
@@ -87,6 +88,7 @@ export function render(container) {
       `) : empty('Sin datos para este reporte')}
     `;
 
+    wireEtapaBar(container, draw);
     container.querySelector('[name=tipo]').addEventListener('change', (e) => { tipo = e.target.value; draw(); });
     container.querySelector('#desde')?.addEventListener('change', (e) => { desde = e.target.value; draw(); });
     container.querySelector('#hasta')?.addEventListener('change', (e) => { hasta = e.target.value; draw(); });

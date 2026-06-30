@@ -5,7 +5,7 @@
  */
 
 import { subscribe } from '../../store.js';
-import { clientes, etapaActiva } from '../../maestra.js';
+import { clientes, etapaActiva, etapaBar, wireEtapaBar } from '../../maestra.js';
 import { money, esc, prettyDate } from '../../utils.js';
 import { card, badge, empty, sectionHead } from '../../ui.js';
 import { navigate } from '../../router.js';
@@ -32,6 +32,7 @@ export function render(container) {
 
     container.innerHTML = `
       ${sectionHead(`Clientes — ${etapaActiva()}`, `<span class="text-sm text-gray-500 self-center">${list.length} de ${all.length}</span>`)}
+      ${etapaBar()}
       <div class="grid sm:grid-cols-3 gap-2 mb-4">
         <input id="c-q" class="field" placeholder="Buscar nombre o lote…" value="${esc(q)}" />
         <select id="c-estado" class="field">
@@ -70,6 +71,7 @@ export function render(container) {
     `;
 
     const redraw = () => draw();
+    wireEtapaBar(container, draw);
     const qi = container.querySelector('#c-q');
     qi.addEventListener('input', (e) => {
       q = e.target.value;

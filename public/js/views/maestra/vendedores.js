@@ -5,7 +5,7 @@
  */
 
 import { subscribe, vendedores } from '../../store.js';
-import { vendedoresResumen, clientesDeVendedor, etapaActiva, keyOf } from '../../maestra.js';
+import { vendedoresResumen, clientesDeVendedor, etapaActiva, keyOf, etapaBar, wireEtapaBar } from '../../maestra.js';
 import { money, esc, prettyDate, toast, confirmAction } from '../../utils.js';
 import { card, badge, empty, btn, btnGhost, sectionHead, field } from '../../ui.js';
 import { iconChip } from '../../icons.js';
@@ -36,6 +36,7 @@ export function render(container) {
 
     container.innerHTML = `
       ${sectionHead(`Vendedores — ${etapaActiva()}`, puedeEditar && !editing ? btn('+ Nuevo vendedor', 'id="new"') : '')}
+      ${etapaBar()}
       ${formHTML}
       <div class="mt-4">${card(
         filas.length ? `<div class="table-wrap"><table class="w-full text-sm">
@@ -60,6 +61,7 @@ export function render(container) {
       ${expanded ? detalleVendedor(expanded) : ''}
     `;
 
+    wireEtapaBar(container, () => { editing = null; expanded = null; draw(); });
     container.querySelectorAll('[data-ver]').forEach((el) => el.addEventListener('click', () => {
       expanded = keyOf(expanded) === keyOf(el.dataset.ver) ? null : el.dataset.ver;
       draw();

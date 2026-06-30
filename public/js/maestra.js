@@ -17,7 +17,7 @@ import {
   ingresos, gastos, lotes, contratos, vendedores,
   cobranza as cobranzaCol, pagos as pagosCol, sobres as sobresCol, maestraAsOf,
 } from './store.js';
-import { toNum, todayISO } from './utils.js';
+import { toNum, todayISO, esc } from './utils.js';
 import { ETAPA_MAESTRA_DEFAULT, ETAPAS_MAESTRA, STORAGE_ETAPA_MAESTRA, AGING_BUCKETS, CAT_ENGANCHE, CAT_ABONA_LOTE, CAT_VENTA_LOTE, MAESTRA_ASOF } from './config.js';
 
 // ---------- Etapa activa (selector multi-etapa, recordada en localStorage) ----------
@@ -34,6 +34,29 @@ export const setEtapa = (e) => {
   _etapa = e;
   try { localStorage.setItem(STORAGE_ETAPA_MAESTRA, e); } catch {}
 };
+
+// ---------- Selector de etapa reutilizable (para cualquier vista de la Maestra) ----------
+/**
+ * Barra de pestañas de etapa para colocar justo debajo del encabezado de una
+ * sección, y así cambiar de etapa sin volver al Dashboard. Usar con wireEtapaBar().
+ */
+export function etapaBar() {
+  return `
+    <p class="text-xs uppercase tracking-wide text-gray-500 mb-2">Elige la etapa</p>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-3 mb-5" data-etapa-bar>
+      ${ETAPAS_MAESTRA.map((e) => `
+        <button type="button" data-etapa="${esc(e)}"
+          class="px-4 py-3 rounded-xl border text-sm font-semibold text-center transition ${e === _etapa
+            ? 'bg-brand text-white border-brand shadow'
+            : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 hover:border-brand hover:shadow-sm'}">${esc(e)}</button>`).join('')}
+    </div>`;
+}
+
+/** Conecta la barra de etapa: al hacer clic cambia la etapa activa y redibuja. */
+export function wireEtapaBar(container, redraw) {
+  container.querySelectorAll('[data-etapa-bar] [data-etapa]').forEach((b) =>
+    b.addEventListener('click', () => { setEtapa(b.dataset.etapa); if (redraw) redraw(); }));
+}
 
 // ---------- Helpers ----------
 const ci = (a, b) => String(a ?? '').trim().toLowerCase() === String(b ?? '').trim().toLowerCase();
@@ -60,6 +83,9 @@ export function bucketMeses(meses) {
 
 // ---------- Conjuntos base ----------
 export const lotesEtapa = () => lotes.all().filter((l) => !l.etapa || ci(l.etapa, _etapa));
+
+/** Contratos de la etapa activa (mismo criterio que lotesEtapa). */
+export const contratosEtapa = () => contratos.all().filter((c) => !c.etapa || ci(c.etapa, _etapa));
 
 /** Pagos NUEVOS del Diario (Etapa 3) posteriores al corte del Excel. */
 export const pagosLive = () => ingresos.all().filter((x) => ci(x.etapa, _etapa) && (x.fecha || '') > asof());
@@ -214,7 +240,7 @@ export function clientes() {
     if (l.telefono && l.telefono !== 'Sin Registro') c.telefono = l.telefono;
   }
 
-  const ctrByCli = groupBy(contratos.all(), (x) => keyOf(x.cliente));
+  const ctrByCli = groupBy(contratosEtapa(), (x) => keyOf(x.cliente));
   return [...byCli.values()].map((c) => {
     const liquidado = c.saldo <= 0.01;
     const atrasoMeses = liquidado ? 0 : c.retrasoMeses;
@@ -474,7 +500,7 @@ export function catalogoCaptura() {
     porLote.set(keyOf(l.numero), { numero: l.numero, cliente: l.cliente || '', vendedor: l.vendedor || '' });
     if (l.cliente && ci(l.estado, 'Vendido')) addCli(l.cliente, l.numero, l.vendedor);
   }
-  for (const c of contratos.all()) { addCli(c.cliente, c.lote, c.vendedor); }
+  for (const c of contratosEtapa()) { addCli(c.cliente, c.lote, c.vendedor); }
   const nombres = [...porCliente.values()].map((r) => r.nombre).sort((a, b) => a.localeCompare(b));
   const lotesAll = [...porLote.values()].map((r) => r.numero)
     .sort((a, b) => String(a).localeCompare(String(b), 'es', { numeric: true }));
@@ -493,7 +519,7 @@ export function dashboard(mes = todayISO().slice(0, 7)) {
   const cob = cobranza();
   const lts = lotesEtapa();
   const pagosMes = pagosEtapa().filter((p) => (p.fecha || '').slice(0, 7) === mes);
-  const contratosList = contratos.all();
+  const contratosList = contratosEtapa();
 
   return {
     etapa: _etapa, mes, asOf: asof(),
@@ -680,7 +706,7 @@ export function gridSobre(loteClave) {
   const mens = toNum(l.mensualidad);
   const enganche = toNum(l.enganche);
   const precio = toNum(l.precio);
-  const ctr = contratos.all().find((c) => keyOf(c.lote) === lk) || null;
+  const ctr = contratosEtapa().find((c) => keyOf(c.lote) === lk) || null;
   const histLote = pagosHist().filter((p) => keyOf(p.lote) === lk);
   const fechaEnganche = histLote.filter((p) => ci(p.categoria, 'Enganche')).map((p) => p.fecha).sort()[0]
     || l.fechaVenta || (ctr && ctr.fechaFirma) || '';

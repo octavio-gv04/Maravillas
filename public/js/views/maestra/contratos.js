@@ -6,7 +6,7 @@
  */
 
 import { subscribe, contratos } from '../../store.js';
-import { clientes, lotesResumen, etapaActiva } from '../../maestra.js';
+import { clientes, lotesResumen, etapaActiva, contratosEtapa, etapaBar, wireEtapaBar } from '../../maestra.js';
 import { money, esc, prettyDate, todayISO, toast, confirmAction } from '../../utils.js';
 import { card, badge, empty, btn, btnGhost, sectionHead, field, select } from '../../ui.js';
 import { can } from '../../auth.js';
@@ -18,7 +18,7 @@ export function render(container) {
   let editing = null;
 
   const draw = () => {
-    const list = contratos.all().slice().sort((a, b) => String(b.folio).localeCompare(String(a.folio)));
+    const list = contratosEtapa().slice().sort((a, b) => String(b.folio).localeCompare(String(a.folio)));
     const puedeEditar = can('crear');
     const cli = clientes();
     const lts = lotesResumen();
@@ -50,6 +50,7 @@ export function render(container) {
 
     container.innerHTML = `
       ${sectionHead(`Contratos — ${etapaActiva()}`, puedeEditar && !editing ? btn('+ Nuevo contrato', 'id="new"') : '')}
+      ${etapaBar()}
       ${formHTML}
       <div class="mt-4">${card(
         list.length ? `<div class="table-wrap"><table class="w-full text-sm">
@@ -75,6 +76,7 @@ export function render(container) {
       </div>
     `;
 
+    wireEtapaBar(container, () => { editing = null; draw(); });
     container.querySelector('#new')?.addEventListener('click', () => { editing = {}; draw(); });
     container.querySelector('#cancel')?.addEventListener('click', () => { editing = null; draw(); });
     container.querySelectorAll('[data-edit]').forEach((el) => el.addEventListener('click', () => {

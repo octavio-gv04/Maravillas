@@ -5,7 +5,7 @@
  */
 
 import { subscribe } from '../../store.js';
-import { cobranza, etapaActiva } from '../../maestra.js';
+import { cobranza, etapaActiva, etapaBar, wireEtapaBar } from '../../maestra.js';
 import { money, esc, prettyDate } from '../../utils.js';
 import { card, badge, empty, sectionHead, btnGhost } from '../../ui.js';
 import { navigate } from '../../router.js';
@@ -31,6 +31,7 @@ export function render(container) {
     container.innerHTML = `
       ${sectionHead(`Cobranza — ${etapaActiva()}`, `
         <span class="text-sm self-center">Cartera total: <strong class="tabular-nums">${money(cob.totalCartera)}</strong> · Vencido: <strong class="text-red-600 tabular-nums">${money(cob.porCobrarVencido)}</strong></span>`)}
+      ${etapaBar()}
 
       <div class="grid grid-cols-2 md:grid-cols-5 gap-2 md:gap-3 mb-4">${tarjetas}</div>
 
@@ -59,6 +60,7 @@ export function render(container) {
       `) : empty('No hay clientes con atraso en este segmento')}
     `;
 
+    wireEtapaBar(container, () => { fSeg = ''; draw(); });
     container.querySelectorAll('[data-seg]').forEach((b) =>
       b.addEventListener('click', () => { fSeg = b.dataset.seg === 'corriente' ? '' : (fSeg === b.dataset.seg ? '' : b.dataset.seg); draw(); }));
     container.querySelector('#clear')?.addEventListener('click', () => { fSeg = ''; draw(); });
