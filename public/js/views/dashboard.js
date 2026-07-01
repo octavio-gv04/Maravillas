@@ -1,10 +1,11 @@
 /**
  * views/dashboard.js — Dashboard por pestañas (replica el reporte del Excel).
- *   • General: KPIs del día, gráfica del mes, resumen del mes y operaciones (SIN detalle del día).
- *   • Etapa 1 y 2 / Etapa 3: lo mismo + detalle de ingresos del día de esa etapa.
+ *   • General: KPIs del día, gráfica del mes, resumen del mes y operaciones.
+ *   • Etapa 1 y 2 / Etapa 3 / zonas: lo mismo + Flujo de efectivo del mes (réplica
+ *     de la hoja FLUJO del Excel: ingresos por concepto, comisiones y operación).
  */
 
-import { resumenDia, serieMesPorDia, resumenMes, resumenSkvoDia, serieSkvoMes, resumenSkvoMes } from '../calc.js';
+import { resumenDia, serieMesPorDia, resumenMes, resumenSkvoDia, serieSkvoMes, resumenSkvoMes, flujoEtapa } from '../calc.js';
 import { subscribe, ingresos } from '../store.js';
 import { ZONAS } from '../config.js';
 import { money, prettyDate, todayISO, esc } from '../utils.js';
@@ -152,8 +153,10 @@ export function render(container) {
           <div class="relative" style="height:180px"><canvas id="dash-dona"></canvas></div>
           <div>
             ${fila('Ingresos', rm.ingresos)}
-            ${fila('Gastos', rm.egresos)}
-            ${fila('Utilidad Operativa', rm.utilidad, 'font-bold border-t-2 border-gray-300 dark:border-gray-600 mt-1 pt-1')}
+            ${fila('Gastos', rm.gastos)}
+            ${fila('Utilidad Operativa', rm.utilidad, 'font-semibold border-t border-gray-200 dark:border-gray-700 mt-1 pt-1')}
+            ${fila(rm.skvoNeto ? 'Gastos SKVO' : 'Otros Gastos', rm.skvoNeto ? -rm.skvoNeto : 0)}
+            ${fila('Resultado', rm.resultado, 'font-bold border-t-2 border-gray-300 dark:border-gray-600 mt-1 pt-1')}
           </div>
         </div>
       `);
@@ -165,26 +168,60 @@ export function render(container) {
           <div class="bg-green-600 px-4 py-3 flex items-center justify-between gap-2"><span class="flex items-center gap-1.5">${svgIcon('tag', 'w-4 h-4')} VENDIDOS</span><span class="text-xl">${rm.vendidos}</span></div>
         </div>`;
 
+      // Flujo de efectivo del MES para la etapa (réplica de la hoja FLUJO del Excel):
+      // Ingresos (efectivo/depósito + desglose) y Egresos (comisiones + operación,
+      // SIN SKVO — el SKVO ya va neto en el Resumen de arriba).
       let detalle = '';
       if (!isGen) {
-        const lista = ingresos.byDate(iso).filter((x) => ci(x.etapa, tab)).sort((a, b) => (a.folio ?? 0) - (b.folio ?? 0));
-        const total = lista.reduce((a, x) => a + (Number(x.monto) || 0), 0);
+        const f = flujoEtapa(tab, { desde: `${mes}-01`, hasta: `${mes}-31` });
+        const conciliado = Math.abs(f.conciliacion) < 0.01;
+        const totalEgresos = f.totalComisiones + f.totalOperacion;
         detalle = `<div class="mt-4">${card(`
-          ${cardTitle('receipt', `Detalle de ingresos del día — ${tab}`, 'bg-green-500')}
-          ${lista.length ? `
-          <div class="table-wrap"><table class="w-full text-sm">
-            <thead class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-700">
-              <tr><th class="py-2">Concepto</th><th>Lote</th><th class="text-right">Cantidad</th></tr>
-            </thead>
-            <tbody>
-              ${lista.map((x) => `<tr class="border-b border-gray-100 dark:border-gray-700/50">
-                <td class="py-2">${esc(x.categoria)}</td><td>${esc(x.lote || '—')}</td>
-                <td class="text-right font-medium text-green-600">${money(x.monto)}</td></tr>`).join('')}
-            </tbody>
-            <tfoot><tr class="font-semibold border-t-2 border-gray-200 dark:border-gray-700">
-              <td class="py-2" colspan="2">Total ingresos del día</td>
-              <td class="text-right text-green-600">${money(total)}</td></tr></tfoot>
-          </table></div>` : empty('Sin ingresos registrados hoy en esta etapa')}
+          ${cardTitle('scale', `Flujo de efectivo del mes — ${tab}`, 'bg-blue-500')}
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-2 mt-2">
+            <div>
+              ${fila('Total de ingresos', f.ingresos.total, 'font-bold text-green-600')}
+              <p class="text-xs uppercase text-gray-400 mt-3 mb-1 font-semibold">Ingresos</p>
+              ${fila('Efectivo', f.ingresos.efectivo)}
+              ${fila('Depósito', f.ingresos.deposito)}
+              ${fila('Total de ingresos', f.ingresos.total, 'font-bold border-t border-gray-200 dark:border-gray-700 mt-1 pt-1')}
+              <div class="mt-3 pt-2 border-t border-dashed border-gray-300 dark:border-gray-600">
+                <p class="text-xs uppercase text-gray-400 mb-1">Desglose por concepto</p>
+                ${f.desglose.map((d) => fila(d.label, d.monto)).join('')}
+              </div>
+              <div class="mt-2 flex items-center justify-between text-sm">
+                <span class="text-gray-500">Conciliación</span>
+                <span class="tabular-nums ${conciliado ? 'text-green-600' : 'text-red-600'}">${money(f.conciliacion)}</span>
+              </div>
+            </div>
+            <div>
+              ${fila('Total de egresos', totalEgresos, 'font-bold text-red-600')}
+              <p class="text-xs uppercase text-gray-400 mt-3 mb-1">Comisiones</p>
+              ${f.comisiones.length ? `<table class="w-full text-sm">
+                <thead><tr class="text-gray-400 text-xs">
+                  <th class="text-left font-normal">Vendedor</th><th class="text-right font-normal">Comisión</th>
+                  <th class="text-right font-normal">Base</th><th class="text-right font-normal">Lotes</th>
+                </tr></thead><tbody>
+                  ${f.comisiones.map((c) => `<tr>
+                    <td class="py-0.5">${esc(c.vendedor)}</td>
+                    <td class="text-right tabular-nums">${money(c.comision)}</td>
+                    <td class="text-right tabular-nums">${money(c.base)}</td>
+                    <td class="text-right tabular-nums">${c.lotes}</td></tr>`).join('')}
+                </tbody></table>` : '<p class="text-sm text-gray-400">Sin comisiones</p>'}
+              ${fila('Total de comisiones', f.totalComisiones, 'font-semibold border-t border-gray-200 dark:border-gray-700 mt-1 pt-1')}
+              <div class="mt-3 pt-2 border-t border-dashed border-gray-300 dark:border-gray-600">
+                <p class="text-xs uppercase text-gray-400 mb-1">Gastos generales <span class="normal-case">(compartidos ÷2)</span></p>
+                ${f.generales.filter((g) => g.monto).map((g) => fila(g.label, g.monto)).join('') || '<p class="text-sm text-gray-400">—</p>'}
+                ${fila('Total generales', f.totalGenerales, 'font-medium border-t border-gray-100 dark:border-gray-700/50 mt-1 pt-1')}
+              </div>
+              <div class="mt-3 pt-2 border-t border-dashed border-gray-300 dark:border-gray-600">
+                <p class="text-xs uppercase text-gray-400 mb-1">Gastos asignados a ${esc(tab)}</p>
+                ${f.asignados.filter((g) => g.monto).map((g) => fila(g.label, g.monto)).join('') || '<p class="text-sm text-gray-400">—</p>'}
+                ${fila('Total asignados', f.totalAsignados, 'font-medium border-t border-gray-100 dark:border-gray-700/50 mt-1 pt-1')}
+              </div>
+              ${fila('Total de operación', f.totalOperacion, 'font-semibold mt-2 border-t border-gray-200 dark:border-gray-700 pt-1')}
+            </div>
+          </div>
         `)}</div>`;
       }
 

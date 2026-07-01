@@ -12,11 +12,11 @@
  * editable del mes. Todo se guarda (upsert por fecha) en el store `cortes`.
  */
 
-import { resumenDia } from '../calc.js';
-import { cortes, ingresos, subscribe } from '../store.js';
+import { resumenDia, liquidacionMes } from '../calc.js';
+import { cortes, ingresos, entregas, subscribe } from '../store.js';
 import { RECIBIO_CORTE } from '../config.js';
-import { money, todayISO, toNum, esc, toast, mesLargo } from '../utils.js';
-import { card, cardTitle, btn, monthNav, wireMonthNav } from '../ui.js';
+import { money, todayISO, toNum, esc, toast, mesLargo, prettyDate, confirmAction, formatMoneyIn } from '../utils.js';
+import { card, cardTitle, btn, btnGhost, field, select, empty, monthNav, wireMonthNav } from '../ui.js';
 import { getMes, setMes, onMes } from '../periodo.js';
 import { isCapturista } from '../auth.js';
 
@@ -42,7 +42,8 @@ const contadoDe = (c) => (c && c.contado != null && c.contado !== '' ? toNum(c.c
 export function render(container) {
   const opcionesRecibio = ['', ...RECIBIO_CORTE];
   let depFiltro = 'pendientes';   // pendientes | verificados | todos (lista de depósitos)
-  let corteTab = 'efectivo';      // efectivo | depositos | reporte (pestañas del Corte)
+  let corteTab = 'efectivo';      // efectivo | depositos | reporte | liquidacion (pestañas del Corte)
+  let entEditId = null;           // entrega de Sergio en edición (pestaña Liquidación)
 
   // Lee los campos (data-field) dentro de un contenedor (tarjeta de hoy o fila).
   const readScope = (scope) => {
@@ -240,8 +241,86 @@ export function render(container) {
         <p class="text-sm text-gray-400 mt-1">Próximamente: el resumen para cerrar el día (efectivo, depósitos, entregas y pendientes).</p>
       </div>
     `);
+    // ---------- Entregas de Sergio (efectivo del Corte → Javier) · solo Control Mensual ----------
+    let liqCard = '';
+    if (!soloActual) {
+      const L = liquidacionMes(mes);
+      const editItem = entEditId ? L.entregasMes.find((e) => e.id === entEditId) : null;
+      const cerrado = Math.abs(L.pendiente) < 0.01;
+      const jv = L.socios.Javier, sg = L.socios.Sergio;
+      const sub = (t) => `<tr class="bg-gray-100 dark:bg-gray-800/60"><td class="py-1 px-2 text-xs uppercase tracking-wide text-gray-500" colspan="3">${esc(t)}</td></tr>`;
+      const brow = (l, j, s, o = {}) => `<tr class="${o.bold ? 'font-semibold' : ''} border-b border-gray-100 dark:border-gray-700/50">
+        <td class="py-1.5 ${o.indent ? 'pl-5 text-gray-500 font-normal' : ''}">${esc(l)}</td>
+        <td class="text-right tabular-nums ${o.neg && j < 0 ? 'text-red-500' : ''}">${money(j)}</td>
+        <td class="text-right tabular-nums ${o.neg && s < 0 ? 'text-red-500' : ''}">${money(s)}</td></tr>`;
+      const aj = L.ajuste;
+      const cierre = Math.abs(aj) < 0.01
+        ? '<p class="text-sm text-green-600 mt-2 font-medium">✓ Cada socio tiene lo que le corresponde.</p>'
+        : `<p class="text-sm mt-2">Para cerrar entre socios: <strong>${aj > 0 ? 'Sergio entrega ' + money(aj) + ' a Javier' : 'Javier entrega ' + money(-aj) + ' a Sergio'}</strong>.</p>`;
+      liqCard = card(`
+        ${cardTitle('cash', `Entregas de efectivo — ${mesLargo(mes)}`, 'bg-emerald-500')}
+        <div class="table-wrap"><table class="w-full text-sm">
+          <thead class="text-gray-500 border-b border-gray-200 dark:border-gray-700">
+            <tr><th class="text-left py-1.5">Balance</th>
+              <th class="text-right">Etapa 3 + SKVO<br><span class="text-xs font-normal">Javier</span></th>
+              <th class="text-right">Etapa 1 y 2<br><span class="text-xs font-normal">Sergio</span></th></tr></thead>
+          <tbody>
+            ${brow('Ingresos', jv.ingresos, sg.ingresos, { bold: true })}
+            ${sub('Gastos operativos')}
+            ${brow('Generales', jv.generales, sg.generales, { indent: true })}
+            ${brow('Operación', jv.operacion, sg.operacion, { indent: true })}
+            ${brow('Comisiones', jv.comisiones, sg.comisiones, { indent: true })}
+            ${brow('Total de gastos', jv.totalGastosOper, sg.totalGastosOper, { bold: true })}
+            ${brow('Utilidad Operativa', jv.utilidadOperativa, sg.utilidadOperativa, { bold: true })}
+            ${sub('SKVO · maquinaria (la cubre Etapa 3)')}
+            ${brow('Ingresos SKVO', jv.ingresosSkvo, sg.ingresosSkvo, { indent: true })}
+            ${brow('Gastos SKVO', jv.gastosSkvo, sg.gastosSkvo, { indent: true })}
+            ${brow('Utilidad con SKVO', jv.utilidad, sg.utilidad, { bold: true })}
+            ${sub('Conciliación · lo recibido')}
+            ${brow('Recibido en depósitos', jv.recibidoDeposito, sg.recibidoDeposito, { indent: true })}
+            ${brow('Recibido en efectivo', jv.recibidoEfectivo, sg.recibidoEfectivo, { indent: true })}
+            ${brow('Total recibido', jv.totalRecibido, sg.totalRecibido, { bold: true })}
+            ${brow('Balance (Utilidad − Recibido)', jv.balance, sg.balance, { bold: true, neg: true })}
+          </tbody>
+        </table></div>
+        ${cierre}
+        <p class="text-xs text-gray-400 mt-1">Los depósitos de todas las zonas (${money(L.depositosTotal)}) caen en la cuenta de Sergio. "Recibido en efectivo" = lo que Sergio te ha entregado. Balance negativo = recibió de más.</p>
+        <div class="border-t border-gray-200 dark:border-gray-700 my-4"></div>
+        <form id="ent-form" class="grid grid-cols-1 sm:grid-cols-6 gap-3 items-end mb-4">
+          ${select({ label: 'Quién entrega', name: 'de', options: ['Sergio', 'Javier'], value: editItem?.de || 'Sergio' })}
+          ${select({ label: 'Quién recibe', name: 'para', options: ['Javier', 'Sergio'], value: editItem?.para || 'Javier' })}
+          ${field({ label: 'Fecha', name: 'fecha', type: 'date', value: editItem?.fecha || todayISO(), attrs: 'required' })}
+          ${field({ label: 'Monto (− si se lo quitas)', name: 'monto', money: true, value: editItem ? money(editItem.monto) : '', attrs: 'required' })}
+          <div class="sm:col-span-2">${field({ label: 'Nota', name: 'nota', value: editItem?.nota || '', placeholder: 'Opcional' })}</div>
+          <div class="sm:col-span-6 flex gap-2">
+            ${btn(editItem ? 'Guardar cambios' : 'Registrar entrega', 'type="submit"')}
+            ${editItem ? btnGhost('Cancelar', 'type="button" id="ent-cancel"') : ''}
+          </div>
+        </form>
+        ${L.entregasMes.length ? `<div class="table-wrap"><table class="w-full text-sm">
+          <thead class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-700">
+            <tr><th class="py-2">Fecha</th><th>Entrega → Recibe</th><th>Nota</th><th class="text-right">Monto</th><th></th></tr></thead>
+          <tbody>
+            ${L.entregasMes.map((e) => `<tr class="border-b border-gray-100 dark:border-gray-700/50">
+              <td class="py-1.5">${esc(prettyDate(e.fecha))}</td>
+              <td class="text-gray-500">${esc(e.de || 'Sergio')} → ${esc(e.para || 'Javier')}</td>
+              <td class="text-gray-500">${esc(e.nota || '—')}</td>
+              <td class="text-right tabular-nums font-medium ${toNum(e.monto) < 0 ? 'text-red-500' : 'text-green-600'}">${money(e.monto)}</td>
+              <td class="text-right whitespace-nowrap">
+                <button data-entedit="${e.id}" class="text-brand hover:underline text-xs">Editar</button>
+                <button data-entdel="${e.id}" class="text-red-500 hover:underline text-xs ml-2">Borrar</button></td></tr>`).join('')}
+          </tbody>
+          <tfoot><tr class="font-semibold border-t-2 border-gray-200 dark:border-gray-700">
+            <td class="py-2" colspan="3">Total Sergio → Javier</td>
+            <td class="text-right tabular-nums text-green-600">${money(L.sergioAJavier)}</td><td></td></tr></tfoot>
+        </table></div>` : empty('Sin entregas registradas este mes')}
+        <p class="text-xs text-gray-400 mt-2">Sergio recoge el efectivo del Corte del Flujo (${money(L.corteFlujo)} este mes) y lo entrega a Javier; al cierre, Javier le entrega a Sergio el efectivo de sus etapas. El pendiente es lo que Sergio aún no te ha entregado.</p>
+      `);
+    }
+
     const contenido = corteTab === 'depositos' ? depCard
       : corteTab === 'reporte' ? reporteCard
+      : corteTab === 'liquidacion' ? liqCard
       : `<div class="space-y-4">${hoyCard}${tabla}</div>`;
 
     container.innerHTML = `
@@ -252,7 +331,7 @@ export function render(container) {
         ${soloActual ? `<span class="text-sm font-medium">${esc(mesLargo(mes))}</span>` : monthNav(mes)}
       </div>
       <div class="flex gap-2 mb-4 flex-wrap">
-        ${corteTabBtn('efectivo', 'Efectivo')}${corteTabBtn('depositos', 'Depósitos')}${corteTabBtn('reporte', 'Reporte diario')}
+        ${corteTabBtn('efectivo', 'Efectivo')}${corteTabBtn('depositos', 'Depósitos')}${corteTabBtn('reporte', 'Reporte diario')}${soloActual ? '' : corteTabBtn('liquidacion', 'Entregas de Efectivo')}
       </div>
       ${contenido}
       <p class="text-xs text-gray-500 mt-3">El <strong>Corte del Flujo</strong> es el efectivo esperado del día (ingresos − gastos en efectivo, incluido SKVO) y se calcula solo. Captura el <strong>Contado</strong> físico: si no coincide, se marca <strong>Faltante</strong> o <strong>Sobrante</strong>. La <strong>recolección</strong> (quién y cuándo) puede registrarse después; los días sin recoger quedan <strong>Pendiente</strong>.</p>
@@ -298,6 +377,29 @@ export function render(container) {
         try { await ingresos.update(chk.dataset.verif, { verificado: chk.checked }); }
         catch (err) { chk.checked = !chk.checked; toast('No se pudo guardar: ' + err.message, 'error'); }
       }));
+
+    // ---------- Wiring entregas de Sergio (pestaña Liquidación, solo Control Mensual) ----------
+    const entForm = container.querySelector('#ent-form');
+    if (entForm) {
+      formatMoneyIn(container);
+      entForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const f = entForm.elements;
+        const data = { fecha: f.fecha.value, mes, monto: toNum(f.monto.value), nota: f.nota.value.trim(), de: f.de.value, para: f.para.value };
+        if (!data.monto) { toast('Escribe un monto', 'warn'); return; }
+        try {
+          if (entEditId) { await entregas.update(entEditId, data); entEditId = null; toast('Entrega actualizada'); }
+          else { await entregas.create(data); toast('Entrega registrada'); }
+        } catch { toast('No se pudo guardar', 'error'); }
+      });
+      container.querySelector('#ent-cancel')?.addEventListener('click', () => { entEditId = null; draw(); });
+      container.querySelectorAll('[data-entedit]').forEach((b) =>
+        b.addEventListener('click', () => { entEditId = b.dataset.entedit; draw(); }));
+      container.querySelectorAll('[data-entdel]').forEach((b) =>
+        b.addEventListener('click', async () => {
+          if (await confirmAction('¿Borrar esta entrega?')) { entregas.remove(b.dataset.entdel); toast('Entrega eliminada', 'warn'); }
+        }));
+    }
 
     if (!soloActual) wireMonthNav(container, mes, (m) => setMes(m));
   };

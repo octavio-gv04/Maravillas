@@ -21,7 +21,6 @@ import { iconChip, svgIcon, NAV_ICONS, WORKSPACE_ICONS } from './icons.js';
 import { render as dashboard } from './views/dashboard.js';
 import { render as ingresos } from './views/ingresos.js';
 import { render as gastos } from './views/gastos.js';
-import { render as flujo } from './views/flujo.js';
 import { render as corte } from './views/corte.js';
 import { render as skvo } from './views/skvo.js';
 import { render as conciliacion } from './views/conciliacion.js';
@@ -49,7 +48,6 @@ import { render as mAuditoria } from './views/maestra/auditoria.js';
 route('dashboard', { title: 'Dashboard', icon: '🏠', render: dashboard, group: 'diario' });
 route('ingresos', { title: 'Ingresos', icon: '📈', render: ingresos, groups: ['diario', 'captura'] });
 route('gastos', { title: 'Gastos', icon: '📉', render: gastos, groups: ['diario', 'captura'] });
-route('flujo', { title: 'Flujo de efectivo', icon: '💵', render: flujo, group: 'diario' });
 route('corte', { title: 'Corte', icon: '🧮', render: corte, groups: ['diario', 'captura'] });
 route('skvo', { title: 'SKVO', icon: '⚙️', render: skvo, groups: ['diario', 'captura'] });
 route('conciliacion', { title: 'Conciliación', icon: '🔗', render: conciliacion, group: 'diario' });
@@ -298,7 +296,7 @@ function wireGlobal() {
   installMoneyInputs();     // campos de dinero: muestran $1,234.00, editan número plano
 
   // Guard del router: una ruta solo es accesible si pertenece al espacio activo.
-  // Así un capturista en "Captura Diaria" no puede abrir #/flujo, #/dashboard, etc.
+  // Así un capturista en "Captura Diaria" no puede abrir #/conciliacion, #/dashboard, etc.
   setGuard((path, def) => {
     const groups = def.groups || (def.group ? [def.group] : []);
     return groups.includes(currentGroup);

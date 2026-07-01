@@ -21,6 +21,7 @@ const EMPTY_CACHE = () => ({
   ingresos: [], gastos: [], cortes: [], historial: [],
   skvoIngresos: [], skvoGastos: [],
   lotes: [], contratos: [], vendedores: [], cobranza: [], pagos: [], sobres: [],
+  entregas: [],
 });
 let cache = EMPTY_CACHE();
 
@@ -180,6 +181,7 @@ export const vendedores = makeCollection('vendedores');
 export const cobranza = makeCollection('cobranza');
 export const pagos = makeCollection('pagos'); // historial migrado del Excel
 export const sobres = makeCollection('sobres'); // revisión manual del sobre físico (itemización por mes)
+export const entregas = makeCollection('entregas'); // entregas de efectivo Javier→Sergio (liquidación de socios)
 
 /** Fecha de corte del Excel maestro (los pagos del Diario posteriores son "nuevos"). */
 export const maestraAsOf = () => cache.maestra_asof || '';

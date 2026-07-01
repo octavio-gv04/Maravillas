@@ -34,6 +34,17 @@ export const STORAGE_KEYS = {
 // esta lista — los catálogos de abajo y las vistas se derivan de ella.
 export const ZONAS = ['Etapa 1 y 2', 'Etapa 3', 'San José', 'Santa Mónica'];
 
+// Liquidación de socios: beneficiario de la utilidad de cada zona. Los DEPÓSITOS
+// de TODAS las zonas caen en la cuenta de Sergio; Javier se queda con Etapa 3.
+// El cierre del mes: efectivo a Sergio = (utilidad de sus zonas) − (depósitos totales).
+export const BENEFICIARIOS = {
+  'Etapa 3': 'Javier',
+  'Etapa 1 y 2': 'Sergio',
+  'San José': 'Sergio',
+  'Santa Mónica': 'Sergio',
+};
+export const BENEFICIARIO_DEPOSITOS = 'Sergio';
+
 // Etapas seleccionables al capturar. Ingreso = zonas; Gasto = zonas + "General".
 export const ETAPAS_INGRESO = [...ZONAS];
 export const ETAPAS_GASTO = ['General', ...ZONAS];

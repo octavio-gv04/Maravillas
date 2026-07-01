@@ -10,3 +10,4 @@ data/*.log
 data/db.json.tmp
 data/db.backup-*.json
 data/*.backup*
+data/backups/

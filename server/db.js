@@ -31,6 +31,9 @@ const EMPTY = () => ({
   // sobres = revisión manual del sobre físico del cliente: itemización real
   // mes a mes de un lote para corregir el historial y recalcular el atraso.
   sobres: [],
+  // entregas = efectivo que Javier entrega a Sergio para cerrar el mes
+  // (liquidación de socios: Utilidad de Sergio − Depósitos totales).
+  entregas: [],
   recibos_seq: 0, folio_ingreso: 100, folio_gasto: 100, folio_contrato: 100,
   folio_skvo_ingreso: 200, folio_skvo_gasto: 100,
 });

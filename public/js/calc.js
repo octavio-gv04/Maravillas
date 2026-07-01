@@ -4,12 +4,12 @@
  * por categoria, comisiones por vendedor y corte diario.
  */
 
-import { ingresos, gastos, cortes, skvoIngresos, skvoGastos } from './store.js';
+import { ingresos, gastos, cortes, skvoIngresos, skvoGastos, entregas } from './store.js';
 import { toNum } from './utils.js';
 import {
   FLUJO_GRUPOS_INGRESO, VENDEDORES, FLUJO_ETAPAS, RESUMEN_CONCEPTOS,
   FLUJO_COMISION_CATS, FLUJO_GENERALES, FLUJO_ASIGNADOS, FLUJO_ETAPAS_COMPARTIDAS,
-  SKVO_ETAPA_DEFAULT, CAT_VENTA_LOTE,
+  SKVO_ETAPA_DEFAULT, CAT_VENTA_LOTE, ZONAS, BENEFICIARIOS, BENEFICIARIO_DEPOSITOS,
 } from './config.js';
 
 const sum = (list) => list.reduce((acc, x) => acc + toNum(x.monto), 0);
@@ -267,21 +267,111 @@ export function resumenMes(mes, etapasList) {
     });
   }
 
-  // EGRESOS del resumen = TODOS los gastos del mes (no solo los que encajan en el
-  // modelo del Flujo) + gastos SKVO, para que el total no deje fuera categorías de
-  // operación sin zona (Trámites, Contrato…). Vista General (varias etapas) = todo;
-  // vista de una zona = solo esa zona. Utilidad = ingresos − egresos.
+  // GASTOS operativos = gastos propios de la etapa + los "General" (compartidos)
+  // repartidos EN PARTES IGUALES entre las etapas que comparten (Etapa 1 y 2 y
+  // Etapa 3). Vista General (varias etapas) = TODOS los gastos del mes.
   const enPer = (x) => (!periodo.desde || (x.fecha || '') >= periodo.desde) && (!periodo.hasta || (x.fecha || '') <= periodo.hasta);
   const esGeneral = etapasList.length > 1;
-  const gView = gastos.all().filter((x) => enPer(x) && (esGeneral || ci(x.etapa, etapasList[0])));
-  const skView = skvoGastos.all().filter((x) => enPer(x) && (esGeneral || ci(x.etapa || SKVO_ETAPA_DEFAULT, etapasList[0])));
-  const egresos = sum(gView) + sum(skView);
-  const utilidad = ingr - egresos;
+  const gastosMes = gastos.all().filter(enPer);
+  let gastos_ = 0;
+  if (esGeneral) {
+    gastos_ = sum(gastosMes);
+  } else {
+    const et = etapasList[0];
+    const propios = sum(gastosMes.filter((x) => ci(x.etapa, et)));
+    const comparte = FLUJO_ETAPAS.some((e) => ci(e, et));
+    const general = comparte
+      ? sum(gastosMes.filter((x) => ci(x.etapa, 'General'))) / FLUJO_ETAPAS_COMPARTIDAS
+      : 0;
+    gastos_ = propios + general;
+  }
+
+  // SKVO: la operación de maquinaria la cubre Etapa 3. Se muestra NETO
+  // (gastos − ingresos) como línea aparte, después de la Utilidad Operativa.
+  const cubreSkvo = esGeneral || ci(etapasList[0], SKVO_ETAPA_DEFAULT);
+  const skvoNeto = cubreSkvo
+    ? sum(skvoGastos.all().filter(enPer)) - sum(skvoIngresos.all().filter(enPer))
+    : 0;
+
+  const utilidad = ingr - gastos_;         // Utilidad Operativa (sin SKVO)
+  const resultado = utilidad - skvoNeto;   // Resultado final (tras SKVO)
+  const egresos = gastos_ + skvoNeto;      // total de salidas (para la dona)
 
   return {
     mes, conceptos,
-    ingresos: ingr, egresos, utilidad,
+    ingresos: ingr, gastos: gastos_, egresos, utilidad, skvoNeto, resultado,
     abonos, devoluciones, vendidos: vendidosSet.size,
+  };
+}
+
+/**
+ * Liquidación de socios: efectivo del Corte que Sergio recoge y entrega a Javier.
+ *
+ * Sergio recoge TODO el efectivo del Corte del Flujo del mes y se lo va entregando
+ * a Javier conforme avanza el mes. Por eso el total que debe entregar = la suma del
+ * Corte del Flujo del mes. Las entregas se registran (colección `entregas`, ligadas
+ * al mes por el campo `mes`, no por su fecha) y el PENDIENTE = Corte del Flujo −
+ * lo ya entregado. Cada entrega puede ser negativa (ajuste "se lo quité").
+ */
+export function liquidacionMes(mes) {
+  const { desde, hasta } = rangoMes(mes);
+  const enPer = (x) => (x.fecha || '') >= desde && (x.fecha || '') <= hasta;
+  // Efectivo total recogido en el Corte del Flujo del mes (lo que Sergio debe entregar).
+  const corteFlujo = cortes.all().filter(enPer).reduce((a, c) => a + toNum(c.esperado), 0);
+  const entregasMes = entregas.all()
+    .filter((e) => e.mes === mes)
+    .sort((a, b) => (a.fecha || '').localeCompare(b.fecha || ''));
+  // Cada entrega lleva quién entrega (`de`) y quién recibe (`para`). Por defecto
+  // Sergio→Javier (el efectivo del corte). Al cierre Javier→Sergio (sus etapas).
+  const sumDe = (quien) => entregasMes.filter((e) => (e.de || 'Sergio') === quien).reduce((a, e) => a + toNum(e.monto), 0);
+  const sergioAJavier = sumDe('Sergio');
+  const javierASergio = sumDe('Javier');
+  const pendiente = corteFlujo - sergioAJavier; // lo que Sergio aún no le entrega a Javier del corte
+
+  // ----- Balance por socio (Javier = Etapa 3; Sergio = el resto) -----
+  // P&L por lado (usa el Flujo por etapa) + Conciliación de lo recibido:
+  //   • Depósitos: TODOS caen en la cuenta de Sergio.
+  //   • Efectivo: lo que Sergio le entregó a Javier (neto) vs lo que Sergio conservó.
+  // Balance = Utilidad Operativa − Total Recibido (− = recibió de más; + = le falta).
+  // SKVO: en junio lo cubre y recibe Etapa 3 (Javier). Entra como líneas propias en
+  // su columna. Un ingreso SKVO puede venir por depósito → cae en la cuenta de Sergio.
+  const skvoIng = sum(skvoIngresos.all().filter(enPer));
+  const skvoGas = sum(skvoGastos.all().filter(enPer));
+  const skvoDep = sum(skvoIngresos.all().filter((x) => enPer(x) && ci(x.metodo, 'Depósito')));
+  const depositosTotal = sum(ingresos.all().filter((x) => enPer(x) && ci(x.metodo, 'Depósito'))) + skvoDep;
+
+  const soc = {
+    Javier: { nombre: 'Javier', ingresos: 0, generales: 0, operacion: 0, comisiones: 0, ingresosSkvo: skvoIng, gastosSkvo: skvoGas },
+    Sergio: { nombre: 'Sergio', ingresos: 0, generales: 0, operacion: 0, comisiones: 0, ingresosSkvo: 0, gastosSkvo: 0 },
+  };
+  ZONAS.forEach((et) => {
+    const ben = BENEFICIARIOS[et] || 'Sergio';
+    const f = flujoEtapa(et, { desde, hasta });
+    soc[ben].ingresos += f.ingresos.total;
+    soc[ben].generales += f.totalGenerales;
+    soc[ben].operacion += f.totalAsignados;
+    soc[ben].comisiones += f.totalComisiones;
+  });
+  const efectivoJavier = sergioAJavier - javierASergio;         // efectivo que llegó a Javier
+  const efectivoSergio = corteFlujo - efectivoJavier;           // efectivo que Sergio conservó
+  const recibido = { Javier: [0, efectivoJavier], Sergio: [depositosTotal, efectivoSergio] };
+  for (const n of ['Javier', 'Sergio']) {
+    const s = soc[n];
+    s.totalGastosOper = s.generales + s.operacion + s.comisiones;
+    s.utilidadOperativa = s.ingresos - s.totalGastosOper;
+    s.skvoNeto = s.ingresosSkvo - s.gastosSkvo;      // negativo = costa neta del SKVO
+    s.utilidad = s.utilidadOperativa + s.skvoNeto;   // utilidad real (con SKVO)
+    [s.recibidoDeposito, s.recibidoEfectivo] = recibido[n];
+    s.totalRecibido = s.recibidoDeposito + s.recibidoEfectivo;
+    s.balance = s.utilidad - s.totalRecibido;
+  }
+  // Ajuste entre socios: lo que Sergio recibió de más se lo entrega a Javier
+  // (+ → Sergio entrega a Javier; − → Javier entrega a Sergio).
+  const ajuste = -soc.Sergio.balance;
+
+  return {
+    mes, corteFlujo, entregasMes, sergioAJavier, javierASergio, pendiente,
+    depositosTotal, socios: soc, ajuste,
   };
 }
 
