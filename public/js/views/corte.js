@@ -12,9 +12,9 @@
  * editable del mes. Todo se guarda (upsert por fecha) en el store `cortes`.
  */
 
-import { resumenDia, liquidacionMes } from '../calc.js';
-import { cortes, ingresos, entregas, subscribe } from '../store.js';
-import { RECIBIO_CORTE } from '../config.js';
+import { resumenDia, liquidacionMes, serieMesPorDia } from '../calc.js';
+import { cortes, ingresos, gastos, entregas, subscribe } from '../store.js';
+import { RECIBIO_CORTE, ZONAS, FLUJO_ETAPAS, FLUJO_ETAPAS_COMPARTIDAS } from '../config.js';
 import { money, todayISO, toNum, esc, toast, mesLargo, prettyDate, confirmAction, formatMoneyIn } from '../utils.js';
 import { card, cardTitle, btn, btnGhost, field, select, empty, monthNav, wireMonthNav } from '../ui.js';
 import { getMes, setMes, onMes } from '../periodo.js';
@@ -44,6 +44,10 @@ export function render(container) {
   let depFiltro = 'pendientes';   // pendientes | verificados | todos (lista de depósitos)
   let corteTab = 'efectivo';      // efectivo | depositos | reporte | liquidacion (pestañas del Corte)
   let entEditId = null;           // entrega de Sergio en edición (pestaña Liquidación)
+  let reporteDia = todayISO();    // día del Reporte diario (imprimible)
+  let reporteCharts = [];         // instancias Chart.js del reporte (para destruir)
+  const chartColors = () => { const d = document.documentElement.classList.contains('dark'); return { grid: d ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.08)', tick: d ? '#cbd5e1' : '#475569' }; };
+  const destroyReporteCharts = () => { reporteCharts.forEach((c) => { try { c.destroy(); } catch {} }); reporteCharts = []; };
 
   // Lee los campos (data-field) dentro de un contenedor (tarjeta de hoy o fila).
   const readScope = (scope) => {
@@ -234,12 +238,86 @@ export function render(container) {
 
     // ---------- Pestañas del Corte (acortan el scroll) ----------
     const corteTabBtn = (key, label) => `<button data-cortetab="${key}" class="px-3 py-1.5 rounded-lg text-sm font-medium ${corteTab === key ? 'bg-brand text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'}">${esc(label)}</button>`;
+    // ---------- Reporte diario (imprimible; sin resumen del mes) ----------
+    const rci = (a, b) => String(a ?? '').trim().toLowerCase() === String(b ?? '').trim().toLowerCase();
+    const repDiaISO = reporteDia;
+    const corteEfeDia = resumenDia(repDiaISO).efectivoEsperado; // corte del día completo (todas las etapas)
+    const kpiMini = (label, val, cls) => `<div class="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2">
+      <p class="text-xs text-gray-500">${esc(label)}</p><p class="text-lg font-bold tabular-nums ${cls}">${money(val)}</p></div>`;
+    // Normaliza un concepto (automático): lotes/códigos (con dígito) en MAYÚSCULAS,
+    // títulos (Sr/Sra/Ing) y el nombre que les sigue capitalizados, nombres conocidos
+    // capitalizados, y el resto en caso oración (primera letra mayúscula).
+    const TITULOS = { sr: 'Sr', sra: 'Sra', ing: 'Ing', dr: 'Dr', lic: 'Lic' };
+    const NOMBRES = new Set(['goyo', 'monica', 'mónica', 'hillary', 'juan', 'manuel', 'sergio', 'javier', 'laura', 'gonzalo', 'ricardo', 'gilberto']);
+    const capW = (w) => w.charAt(0).toUpperCase() + w.slice(1);
+    const titulo = (s) => {
+      const w = String(s ?? '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+      if (!w.length) return '';
+      const out = w.map((p) => /\d/.test(p) ? p.toUpperCase() : (TITULOS[p] || (NOMBRES.has(p) ? capW(p) : p)));
+      const tit = Object.values(TITULOS);
+      for (let i = 0; i < out.length - 1; i++) if (tit.includes(out[i])) out[i + 1] = capW(out[i + 1]);
+      return capW(out.join(' '));
+    };
+    const byFolio = (a, b) => (a.folio ?? 0) - (b.folio ?? 0);
+    // Los gastos "General" (compartidos) del día se reparten ÷N entre las etapas
+    // que comparten (Etapa 1 y 2 y Etapa 3). `div` divide el monto mostrado.
+    const genGastos = gastos.byDate(repDiaISO).filter((x) => rci(x.etapa, 'General')).sort(byFolio);
+    const tablaGastos = (rows, div = 1) => `<table class="w-full text-sm">
+      <thead class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-700"><tr><th class="py-1">Concepto</th><th>Beneficiario</th><th class="text-right">Cantidad</th></tr></thead>
+      <tbody>${rows.map((x) => `<tr class="border-b border-gray-100 dark:border-gray-700/50"><td class="py-1">${esc(titulo(x.concepto || x.categoria || '—'))}</td><td>${esc(x.beneficiario || x.recibe || x.lote || '—')}</td><td class="text-right tabular-nums text-red-600">${money(toNum(x.monto) / div)}</td></tr>`).join('')}</tbody></table>`;
+    // Orden del reporte: Etapa 3 primero (como el PDF), luego el resto.
+    const ordenRep = ['Etapa 3', ...ZONAS.filter((z) => !rci(z, 'Etapa 3'))];
+    const etapasRep = ordenRep.filter((et) => {
+      const r = resumenDia(repDiaISO, et);
+      return r.ingresos.total || r.gastos.total || (genGastos.length && FLUJO_ETAPAS.some((e) => rci(e, et)));
+    });
+    const secciones = etapasRep.map((et, idx) => {
+      const r = resumenDia(repDiaISO, et);
+      const comparteEt = FLUJO_ETAPAS.some((e) => rci(e, et));
+      const operativosDia = comparteEt ? genGastos.reduce((a, x) => a + toNum(x.monto), 0) / FLUJO_ETAPAS_COMPARTIDAS : 0;
+      const resultadoDia = r.neto - operativosDia; // ingresos − gastos etapa − ½ operativos
+      const lista = ingresos.byDate(repDiaISO).filter((x) => rci(x.etapa, et)).sort(byFolio);
+      const glista = gastos.byDate(repDiaISO).filter((x) => rci(x.etapa, et)).sort(byFolio);
+      return `<section class="rep-etapa ${idx > 0 ? 'rep-break' : ''}" style="padding:8px 0">
+        <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 pb-2 mb-3">
+          <div><p class="font-bold">Administración Las Maravillas</p><p class="text-xs text-gray-500">${esc(etiquetaFecha(repDiaISO))}</p></div>
+          <p class="font-semibold text-brand">${esc(et)}</p>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-3">
+          ${kpiMini('Ingresos del día', r.ingresos.total, 'text-green-600')}
+          ${kpiMini('Gastos del día', r.gastos.total, 'text-red-600')}
+          ${kpiMini('Operativos (½)', operativosDia, 'text-yellow-500')}
+          ${kpiMini('Resultado del día', resultadoDia, 'text-amber-600')}
+          ${kpiMini('Corte efectivo', corteEfeDia, 'text-blue-600')}
+        </div>
+        <div class="relative mb-3" style="height:220px"><canvas data-repchart="${esc(et)}"></canvas></div>
+        <p class="font-semibold text-green-600 mb-1">Detalle de ingresos del día</p>
+        ${lista.length ? `<table class="w-full text-sm">
+          <thead class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-700"><tr><th class="py-1">Concepto</th><th>Lote</th><th class="text-right">Cantidad</th></tr></thead>
+          <tbody>${lista.map((x) => `<tr class="border-b border-gray-100 dark:border-gray-700/50"><td class="py-1">${esc(x.categoria)}</td><td>${esc(x.lote || '—')}</td><td class="text-right tabular-nums text-green-600">${money(x.monto)}</td></tr>`).join('')}</tbody>
+        </table>` : '<p class="text-sm text-gray-400 py-2">Sin ingresos este día.</p>'}
+        ${glista.length ? `<p class="font-semibold text-red-600 mt-3 mb-1">Detalle de gastos del día</p>${tablaGastos(glista)}` : ''}
+        ${(comparteEt && genGastos.length) ? `<p class="font-semibold text-yellow-500 mt-3 mb-1">Gastos operativos del día (½ compartido)</p>${tablaGastos(genGastos, FLUJO_ETAPAS_COMPARTIDAS)}` : ''}
+      </section>`;
+    }).join('');
     const reporteCard = card(`
-      <div class="text-center py-10">
-        <p class="text-3xl mb-2">📋</p>
-        <p class="font-medium text-gray-500">Reporte diario</p>
-        <p class="text-sm text-gray-400 mt-1">Próximamente: el resumen para cerrar el día (efectivo, depósitos, entregas y pendientes).</p>
+      <style>@media print {
+        body * { visibility: hidden !important; }
+        #reporte-diario, #reporte-diario * { visibility: visible !important; }
+        #reporte-diario { position:absolute; left:0; top:0; width:100%; background:#fff; color:#111827; padding:0; }
+        #reporte-diario .text-gray-400 { color:#6b7280 !important; }
+        #reporte-diario .text-gray-500 { color:#4b5563 !important; }
+        .no-print { display:none !important; }
+        .rep-break { page-break-before: always; }
+        .rep-etapa { break-inside: avoid; }
+      }</style>
+      <div class="flex items-center gap-3 flex-wrap mb-4 no-print">
+        ${cardTitle('receipt', 'Reporte diario', 'bg-amber-500')}
+        <label class="text-sm text-gray-500">Día:</label>
+        <input id="rep-dia" type="date" class="field !w-44" value="${repDiaISO}" />
+        ${btn('Imprimir / PDF', 'id="rep-print" type="button"')}
       </div>
+      <div id="reporte-diario">${secciones || empty('Sin movimientos registrados este día')}</div>
     `);
     // ---------- Entregas de Sergio (efectivo del Corte → Javier) · solo Control Mensual ----------
     let liqCard = '';
@@ -323,6 +401,8 @@ export function render(container) {
       : corteTab === 'liquidacion' ? liqCard
       : `<div class="space-y-4">${hoyCard}${tabla}</div>`;
 
+    destroyReporteCharts(); // limpia gráficas previas antes de rehacer el DOM
+
     container.innerHTML = `
       <div class="flex items-center gap-3 mb-4 flex-wrap">
         <h1 class="text-lg font-bold">Corte</h1>
@@ -401,10 +481,68 @@ export function render(container) {
         }));
     }
 
+    // ---------- Wiring Reporte diario (gráficas + día + imprimir) ----------
+    if (corteTab === 'reporte') {
+      const { grid, tick } = chartColors(); // colores del tema en pantalla (se oscurecen al imprimir)
+      const repMes = reporteDia.slice(0, 7);
+      const rciw = (a, b) => String(a ?? '').trim().toLowerCase() === String(b ?? '').trim().toLowerCase();
+      const genMitad = serieMesPorDia(repMes, ['General']).gastos.map((v) => v / FLUJO_ETAPAS_COMPARTIDAS);
+      container.querySelectorAll('[data-repchart]').forEach((canvas) => {
+        if (typeof Chart === 'undefined') return;
+        const et = canvas.dataset.repchart;
+        const serie = serieMesPorDia(repMes, [et]);
+        const datasets = [
+          { label: 'Ingresos', data: serie.ingresos, borderColor: '#16a34a', backgroundColor: 'rgba(22,163,74,.12)', tension: .3, fill: true, borderWidth: 2 },
+          { label: 'Gastos', data: serie.gastos, borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,.10)', tension: .3, fill: true, borderWidth: 2 },
+        ];
+        if (FLUJO_ETAPAS.some((e) => rciw(e, et))) {
+          datasets.push({ label: 'Operativos (½)', data: genMitad, borderColor: '#eab308', backgroundColor: 'rgba(234,179,8,.10)', tension: .3, fill: false, borderWidth: 2 });
+        }
+        reporteCharts.push(new Chart(canvas, {
+          type: 'line',
+          data: { labels: serie.labels, datasets },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: tick } }, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${money(c.parsed.y)}` } } },
+            scales: { x: { grid: { color: grid }, ticks: { color: tick } }, y: { grid: { color: grid }, ticks: { color: tick, callback: (v) => money(v) } } },
+          },
+        }));
+      });
+      const repDia = container.querySelector('#rep-dia');
+      repDia?.addEventListener('change', () => { reporteDia = repDia.value; draw(); });
+      container.querySelector('#rep-print')?.addEventListener('click', () => {
+        // El navegador usa el título del documento como nombre sugerido del PDF.
+        const fechaArchivo = etiquetaFecha(reporteDia).replace(/^[^,]*,\s*/, '');
+        const prev = document.title;
+        document.title = `Corte Las Maravillas ${fechaArchivo}`;
+        window.print();
+        setTimeout(() => { document.title = prev; }, 800);
+      });
+    }
+
     if (!soloActual) wireMonthNav(container, mes, (m) => setMes(m));
   };
 
+  // Al imprimir, oscurece ejes/leyenda de las gráficas del reporte (hoja blanca);
+  // al terminar, restaura los colores del tema (la pantalla sigue oscura).
+  const setChartTicks = (tick, grid) => reporteCharts.forEach((ch) => {
+    if (!ch.options) return;
+    ch.options.plugins.legend.labels.color = tick;
+    ch.options.scales.x.ticks.color = tick; ch.options.scales.y.ticks.color = tick;
+    ch.options.scales.x.grid.color = grid; ch.options.scales.y.grid.color = grid;
+    ch.update('none');
+  });
+  const onBeforePrint = () => setChartTicks('#334155', 'rgba(0,0,0,.15)');
+  const onAfterPrint = () => { const c = chartColors(); setChartTicks(c.tick, c.grid); };
+  window.addEventListener('beforeprint', onBeforePrint);
+  window.addEventListener('afterprint', onAfterPrint);
+
   draw();
   const unsubs = [subscribe(draw), onMes(draw)];
-  return () => unsubs.forEach((u) => u());
+  return () => {
+    unsubs.forEach((u) => u());
+    window.removeEventListener('beforeprint', onBeforePrint);
+    window.removeEventListener('afterprint', onAfterPrint);
+    destroyReporteCharts();
+  };
 }
