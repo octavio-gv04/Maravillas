@@ -1,0 +1,31 @@
+# Render Blueprint — despliega el servidor en la nube con disco persistente.
+#
+# Cómo usarlo:
+#   1) Entra a render.com, conecta tu cuenta de GitHub.
+#   2) New → Blueprint → elige el repo Maravillas. Render lee este archivo.
+#   3) Antes (o después) del primer deploy, configura la variable USERS_JSON
+#      con los usuarios y contraseñas (ver DESPLIEGUE.md).
+#
+# El plan "starter" es necesario para tener disco persistente y estar siempre
+# encendido. Los datos (db.json) viven en el disco montado en /app/data.
+
+services:
+  - type: web
+    name: maravillas
+    runtime: docker
+    plan: starter
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true          # redepliega solo al hacer push a main
+    healthCheckPath: /
+    disk:
+      name: datos
+      mountPath: /app/data    # aquí vive db.json (persistente entre reinicios)
+      sizeGB: 1
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: JWT_SECRET
+        generateValue: true   # Render genera un secreto seguro para las sesiones
+      - key: USERS_JSON
+        sync: false           # lo configuras tú en el dashboard (usuarios/contraseñas)
