@@ -91,6 +91,7 @@ export const NAV_ICONS = {
   historial:        { name: 'clock',       color: 'bg-orange-500' },
   morosos:          { name: 'creditCard',  color: 'bg-orange-500' },
   sobres:           { name: 'envelope',     color: 'bg-cyan-500' },
+  reportes:         { name: 'chartBar',    color: 'bg-violet-500' },
   'm/dashboard':    { name: 'home',        color: 'bg-blue-500' },
   'm/general':      { name: 'list',        color: 'bg-indigo-500' },
   'm/clientes':     { name: 'users',       color: 'bg-sky-500' },

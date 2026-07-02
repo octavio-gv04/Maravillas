@@ -7,7 +7,7 @@
 import { ingresos, lotes, subscribe } from '../store.js';
 import { CAT_INGRESOS, METODOS_INGRESO, ETAPAS_INGRESO, VENDEDORES, CAT_VENTA_LOTE, CAT_VENTA_FORM } from '../config.js';
 import { money, prettyDate, todayISO, esc, toNum, toast, confirmAction, formatMoneyIn } from '../utils.js';
-import { card, btn, btnGhost, field, select, textarea, sectionHead, empty, badge, cardTitle, actionBtn, monthNav, wireMonthNav } from '../ui.js';
+import { card, btn, btnGhost, field, select, textarea, sectionHead, empty, badge, cardTitle, actionBtn, monthNav, wireMonthNav, onSubmitOnce } from '../ui.js';
 import { svgIcon } from '../icons.js';
 import { can, isCapturista } from '../auth.js';
 import { catalogoCaptura, keyOf, registrarVentaLote, revertirVentaLote, comisionVendedor } from '../maestra.js';
@@ -261,8 +261,7 @@ export function render(container) {
       fillEmpty('vendedor', l.vendedor);
     });
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
+    onSubmitOnce(form, async (e) => {
       const lote = els.lote.value.trim().toUpperCase().replace(/\s+/g, '');
       const categoria = els.categoria.value;
       const data = {

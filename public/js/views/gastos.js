@@ -9,7 +9,7 @@
 import { gastos, subscribe } from '../store.js';
 import { CAT_GASTOS, METODOS_GASTO, ETAPAS_GASTO, VENDEDORES, ZONAS } from '../config.js';
 import { money, prettyDate, todayISO, esc, toNum, toast, confirmAction, formatMoneyIn } from '../utils.js';
-import { card, btn, btnGhost, field, select, sectionHead, empty, cardTitle, actionBtn, monthNav, wireMonthNav } from '../ui.js';
+import { card, btn, btnGhost, field, select, sectionHead, empty, cardTitle, actionBtn, monthNav, wireMonthNav, onSubmitOnce } from '../ui.js';
 import { svgIcon } from '../icons.js';
 import { can, isCapturista } from '../auth.js';
 import { catalogoCaptura, keyOf, infoLoteVenta, cancelarVentaLote } from '../maestra.js';
@@ -246,8 +246,7 @@ export function render(container) {
       if (ls.length === 1 && !els.lote.value.trim()) els.lote.value = ls[0];
     });
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
+    onSubmitOnce(form, async (e) => {
       const lote = els.lote.value.trim().toUpperCase().replace(/\s+/g, '');
       const monto = toNum(els.monto.value);
 

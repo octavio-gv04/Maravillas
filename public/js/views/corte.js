@@ -242,6 +242,10 @@ export function render(container) {
     const rci = (a, b) => String(a ?? '').trim().toLowerCase() === String(b ?? '').trim().toLowerCase();
     const repDiaISO = reporteDia;
     const corteEfeDia = resumenDia(repDiaISO).efectivoEsperado; // corte del día completo (todas las etapas)
+    // El Reporte diario NO se puede imprimir hasta que se capture el "Efectivo
+    // contado" de ese día en la pestaña Efectivo (colección `cortes`).
+    const contadoRep = contadoDe(cortes.byDate(repDiaISO));
+    const puedeImprimir = contadoRep != null;
     const kpiMini = (label, val, cls) => `<div class="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2">
       <p class="text-xs text-gray-500">${esc(label)}</p><p class="text-lg font-bold tabular-nums ${cls}">${money(val)}</p></div>`;
     // Normaliza un concepto (automático): lotes/códigos (con dígito) en MAYÚSCULAS,
@@ -315,8 +319,11 @@ export function render(container) {
         ${cardTitle('receipt', 'Reporte diario', 'bg-amber-500')}
         <label class="text-sm text-gray-500">Día:</label>
         <input id="rep-dia" type="date" class="field !w-44" value="${repDiaISO}" />
-        ${btn('Imprimir / PDF', 'id="rep-print" type="button"')}
+        ${puedeImprimir
+          ? btn('Imprimir / PDF', 'id="rep-print" type="button"')
+          : `<button id="rep-print" type="button" disabled title="Captura primero el efectivo contado del día" class="bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 inline-flex items-center justify-center min-h-[2.5rem] px-4 rounded-lg text-sm font-medium cursor-not-allowed">Imprimir / PDF</button>`}
       </div>
+      ${puedeImprimir ? '' : `<p class="no-print flex items-center gap-1.5 text-sm text-amber-600 dark:text-amber-400 -mt-2 mb-4">⚠️ Para imprimir, captura primero el <strong>Efectivo contado</strong> de este día en la pestaña <strong>Efectivo</strong>.</p>`}
       <div id="reporte-diario">${secciones || empty('Sin movimientos registrados este día')}</div>
     `);
     // ---------- Entregas de Sergio (efectivo del Corte → Javier) · solo Control Mensual ----------
@@ -511,6 +518,11 @@ export function render(container) {
       const repDia = container.querySelector('#rep-dia');
       repDia?.addEventListener('change', () => { reporteDia = repDia.value; draw(); });
       container.querySelector('#rep-print')?.addEventListener('click', () => {
+        // No imprimir sin el efectivo contado del día (respaldo del botón deshabilitado).
+        if (contadoDe(cortes.byDate(reporteDia)) == null) {
+          toast('Captura primero el efectivo contado del día en la pestaña Efectivo.', 'warn');
+          return;
+        }
         // El navegador usa el título del documento como nombre sugerido del PDF.
         const fechaArchivo = etiquetaFecha(reporteDia).replace(/^[^,]*,\s*/, '');
         const prev = document.title;

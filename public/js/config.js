@@ -218,7 +218,9 @@ export const WORKSPACES = {
     label: 'Base de Datos', icon: '🏗️',
     desc: 'Administración de Etapa 3: clientes, lotes, contratos, estado de cuenta y cobranza.',
     home: 'm/dashboard',
-    roles: ['admin', 'supervisor'],
+    // Solo admin administra la Base de Datos (todas sus pantallas son editables).
+    // El supervisor es de SOLO LECTURA y se limita al Control Mensual.
+    roles: ['admin'],
   },
 };
 export const STORAGE_WORKSPACE = 'af.v2.workspace';

@@ -11,7 +11,7 @@
  */
 
 import { subscribe, cobranza as notasStore } from '../../store.js';
-import { cobranzaPorLote, estadoCuentaLote, cuentasDeCliente, notasDe, etapaActiva, keyOf } from '../../maestra.js';
+import { cobranzaPorLote, estadoCuentaLote, cuentasDeCliente, notasDe, keyOf } from '../../maestra.js';
 import { money, esc, prettyDate, todayISO, toast } from '../../utils.js';
 import { card, badge, empty, sectionHead, cardTitle, btnGhost } from '../../ui.js';
 import { svgIcon } from '../../icons.js';
@@ -77,7 +77,7 @@ export function render(container) {
     const notas = sel ? notasDe(sel.clienteKey) : [];
 
     container.innerHTML = `
-      ${sectionHead(`Morosos — ${etapaActiva()}`,
+      ${sectionHead('Morosos',
         `<span class="text-sm self-center text-gray-500">${morosos.length} lote(s) con atraso</span>`, 'creditCard', 'bg-orange-500')}
 
       <div id="detalle">${ec ? panelDetalle(sel, ec, cli, notas) : ''}</div>

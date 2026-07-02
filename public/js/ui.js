@@ -31,6 +31,26 @@ export const btn = (label, attrs = '') =>
 export const btnGhost = (label, attrs = '') =>
   `<button class="border border-gray-300 dark:border-gray-600 inline-flex items-center justify-center min-h-[2.5rem] px-3 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition" ${attrs}>${label}</button>`;
 
+/**
+ * Envía un formulario UNA sola vez a la vez: deshabilita el botón de envío
+ * mientras corre el handler async. Protege contra doble clic / internet lento
+ * (evita folios y recibos duplicados en la captura). Rehabilita el botón al
+ * terminar, falle o no; si la vista se redibuja tras guardar, el botón queda
+ * reemplazado de todos modos.
+ */
+export function onSubmitOnce(form, handler) {
+  let busy = false;
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (busy) return;
+    busy = true;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+    try { await handler(e); }
+    finally { busy = false; if (submitBtn) submitBtn.disabled = false; }
+  });
+}
+
 /** Campo de texto/numero/fecha con etiqueta. `money:true` lo convierte en campo
  *  de dinero: se muestra formateado ($1,234.00) y se edita como número plano. */
 export function field({ label, name, type = 'text', value = '', attrs = '', placeholder = '', money: isMoney = false }) {

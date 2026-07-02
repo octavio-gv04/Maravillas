@@ -11,7 +11,7 @@
 
 import { STORAGE_KEYS, WORKSPACES, STORAGE_WORKSPACE } from './config.js';
 import { $, prettyDate, todayISO, esc, localizeFormValidation, installMoneyInputs } from './utils.js';
-import { isLogged, login, logout, getSession } from './auth.js';
+import { isLogged, login, logout, getSession, can } from './auth.js';
 import { init as initStore, onStatus } from './store.js';
 import { route, startRouter, navigate, getRoutes, setHome, setGuard } from './router.js';
 import { getMes, setMes, onMes } from './periodo.js';
@@ -27,6 +27,7 @@ import { render as conciliacion } from './views/conciliacion.js';
 import { render as historial } from './views/historial.js';
 import { render as morosos } from './views/captura/morosos.js';
 import { render as sobres } from './views/captura/sobres.js';
+import { render as reportes } from './views/captura/reportes.js';
 
 // --- Vistas de la Base de Datos Maestra (Etapa 3) ---
 import { render as mDashboard } from './views/maestra/dashboard.js';
@@ -46,15 +47,23 @@ import { render as mAuditoria } from './views/maestra/auditoria.js';
 // captura (Ingresos, Gastos, Corte, SKVO) se comparten entre "Captura Diaria"
 // (capturista) y "Control Mensual" (admin); el resto es solo del admin.
 route('dashboard', { title: 'Dashboard', icon: '🏠', render: dashboard, group: 'diario' });
-route('ingresos', { title: 'Ingresos', icon: '📈', render: ingresos, groups: ['diario', 'captura'] });
-route('gastos', { title: 'Gastos', icon: '📉', render: gastos, groups: ['diario', 'captura'] });
-route('corte', { title: 'Corte', icon: '🧮', render: corte, groups: ['diario', 'captura'] });
-route('skvo', { title: 'SKVO', icon: '⚙️', render: skvo, groups: ['diario', 'captura'] });
+// `edits: true` marca vistas con captura/edición o acciones destructivas. Se
+// ocultan (y se bloquea su navegación) para roles de SOLO LECTURA (supervisor),
+// dejándoles una experiencia de puras pantallas de consulta.
+route('ingresos', { title: 'Ingresos', icon: '📈', render: ingresos, groups: ['diario', 'captura'], edits: true });
+route('gastos', { title: 'Gastos', icon: '📉', render: gastos, groups: ['diario', 'captura'], edits: true });
+route('corte', { title: 'Corte', icon: '🧮', render: corte, groups: ['diario', 'captura'], edits: true });
+route('skvo', { title: 'SKVO', icon: '⚙️', render: skvo, groups: ['diario', 'captura'], edits: true });
 route('conciliacion', { title: 'Conciliación', icon: '🔗', render: conciliacion, group: 'diario' });
-route('historial', { title: 'Historial', icon: '🕑', render: historial, group: 'diario' });
+route('historial', { title: 'Historial', icon: '🕑', render: historial, group: 'diario', edits: true });
+// Reportes (Captura Diaria): un solo menú con pestañas internas que agrupa
+// Morosos y Sobre. Las rutas `morosos`/`sobres` siguen registradas y navegables
+// (para deep-links y el botón "revisar sobre" del Estado de cuenta), pero fuera
+// del menú lateral: se activan como pestañas dentro de Reportes.
+route('reportes', { title: 'Reportes', icon: '📊', render: reportes, group: 'captura' });
 // Morosos: seguimiento de cobranza acotado, exclusivo de Captura Diaria
 // (el admin usa la Cobranza completa en la Base de Datos Maestra).
-route('morosos', { title: 'Morosos', icon: '💳', render: morosos, group: 'captura' });
+route('morosos', { title: 'Morosos', icon: '💳', render: morosos, group: 'captura', hidden: true });
 
 route('m/dashboard', { title: 'Dashboard', icon: '🏠', render: mDashboard, group: 'maestra' });
 // Vista General: la "vista de pájaro" de toda la etapa (réplica de la hoja GENERAL).
@@ -66,7 +75,7 @@ route('m/clientes', { title: 'Clientes', icon: '👥', render: mClientes, group:
 // Sobre: la LISTA de revisión vive en el menú de Captura (Hillary). En la Maestra
 // (admin) NO va en el menú —se revisa por lote desde el Estado de cuenta del
 // cliente—, pero la ruta sigue accesible para que ese botón funcione.
-route('sobres', { title: 'Sobre', icon: '✉️', render: sobres, groups: ['captura', 'maestra'], hideInMenu: ['maestra'] });
+route('sobres', { title: 'Sobre', icon: '✉️', render: sobres, groups: ['captura', 'maestra'], hideInMenu: ['captura', 'maestra'] });
 route('m/lotes', { title: 'Lotes', icon: '🏠', render: mLotes, group: 'maestra' });
 route('m/contratos', { title: 'Contratos', icon: '📄', render: mContratos, group: 'maestra' });
 // Estado de cuenta: NO es un módulo del menú, es el detalle 360° de UN cliente.
@@ -81,6 +90,10 @@ route('m/auditoria', { title: 'Auditoría', icon: '🛡️', render: mAuditoria,
 
 let started = false;       // store + router inicializados una sola vez
 let currentGroup = 'diario';
+
+// ¿El rol actual puede modificar datos? El supervisor (solo lectura) no: se le
+// ocultan las vistas editables y se le bloquea navegar a ellas.
+const canEdit = () => can('crear') || can('editar');
 
 // ---------- Espacios permitidos según el rol de la sesión ----------
 // Un espacio sin `roles` lo ve cualquiera; con `roles`, solo esos roles.
@@ -193,7 +206,8 @@ function buildNav(group) {
   nav.innerHTML = getRoutes(group)
     // `hidden`: ruta navegable pero fuera de TODO menú (p.ej. estado-cuenta).
     // `hideInMenu`: oculta solo en ciertos grupos (p.ej. Sobre fuera del menú de admin).
-    .filter(([, def]) => def.icon && !def.hidden && !(def.hideInMenu || []).includes(group))
+    .filter(([, def]) => def.icon && !def.hidden && !(def.hideInMenu || []).includes(group)
+      && !(def.edits && !canEdit()))   // solo-lectura: sin vistas editables
     .map(([path, def]) => {
       const ic = NAV_ICONS[path];
       const icono = ic ? iconChip(ic.name, ic.color) : `<span>${def.icon}</span>`;
@@ -299,7 +313,9 @@ function wireGlobal() {
   // Así un capturista en "Captura Diaria" no puede abrir #/conciliacion, #/dashboard, etc.
   setGuard((path, def) => {
     const groups = def.groups || (def.group ? [def.group] : []);
-    return groups.includes(currentGroup);
+    if (!groups.includes(currentGroup)) return false;
+    if (def.edits && !canEdit()) return false; // solo-lectura: bloquea vistas editables aun por URL
+    return true;
   });
 
   // Selector de mes global (Control Mensual): mantiene sincronizado el input con
